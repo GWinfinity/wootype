@@ -45,7 +45,7 @@ impl Generation {
 }
 
 /// A live entity reference in the ECS world
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct Entity {
     pub id: EntityId,
     pub generation: Generation,

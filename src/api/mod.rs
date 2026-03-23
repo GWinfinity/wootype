@@ -5,5 +5,5 @@
 pub mod server;
 pub mod service;
 
-pub use server::ApiServer;
+pub use server::{ApiServer, ApiConfig};
 pub use service::TypeService;

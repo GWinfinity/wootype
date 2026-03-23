@@ -91,7 +91,7 @@ impl StreamingChecker {
         // Store state
         {
             let mut states = self.states.write();
-            *states = states.insert(request.id, state.clone());
+            *states = states.update(request.id, state.clone());
         }
         
         // Perform check
@@ -115,7 +115,7 @@ impl StreamingChecker {
                     },
                     ..state.clone()
                 };
-                *states = states.insert(request.id, updated);
+                *states = states.update(request.id, updated);
             }
         }
         
@@ -274,7 +274,7 @@ mod tests {
     fn test_quick_check_literal() {
         let checker = setup_checker();
         
-        let lit = Expression::Literal(super::stream::LiteralValue::Int(42));
+        let lit = Expression::Literal(crate::validate::stream::LiteralValue::Int(42));
         let result = checker.quick_check(&lit);
         
         assert!(result.valid);
@@ -286,7 +286,7 @@ mod tests {
         
         let request = CheckRequest {
             id: ExpressionId::new(1),
-            expr: Expression::Literal(super::stream::LiteralValue::Int(42)),
+            expr: Expression::Literal(crate::validate::stream::LiteralValue::Int(42)),
             position: SourcePosition::default(),
             expected_type: None,
         };

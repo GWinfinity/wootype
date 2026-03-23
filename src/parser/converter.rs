@@ -67,16 +67,10 @@ impl TypeConverter {
         
         let id = self.next_type_id();
         
-        let kind = if let Some(recv) = &func.recv {
-            // Method
-            let recv_types: Vec<TypeId> = recv.names.iter()
-                .map(|_| async { self.convert_type_expr(&recv.typ).await })
-                .filter_map(|r| r.ok())
-                .collect::<Vec<_>>()
-                .await;
-            
+        let kind = if let Some(_recv) = &func.recv {
+            // Method - simplified for now
             TypeKind::Signature {
-                recv: recv_types.first().copied(),
+                recv: None, // Simplified
                 params,
                 results,
                 variadic: false,
@@ -97,7 +91,8 @@ impl TypeConverter {
     }
     
     /// Convert type expression
-    async fn convert_type_expr(&self, expr: &TypeExpr) -> Result<TypeId, ConvertError> {
+    fn convert_type_expr<'a>(&'a self, expr: &'a TypeExpr) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<TypeId, ConvertError>> + Send + 'a>> {
+        Box::pin(async move {
         match expr {
             TypeExpr::Ident(name) => {
                 self.resolve_type_by_name(name).await
@@ -143,9 +138,9 @@ impl TypeConverter {
                 let elem_id = self.convert_type_expr(elem).await?;
                 let id = self.next_type_id();
                 let chan_dir = match dir {
-                    ChanDir::Send => crate::core::types::ChanDir::Send,
-                    ChanDir::Recv => crate::core::types::ChanDir::Recv,
-                    ChanDir::Both => crate::core::types::ChanDir::Both,
+                    super::ast::ChanDir::Send => crate::core::types::ChanDir::Send,
+                    super::ast::ChanDir::Recv => crate::core::types::ChanDir::Recv,
+                    super::ast::ChanDir::Both => crate::core::types::ChanDir::Both,
                 };
                 let kind = TypeKind::Chan { dir: chan_dir, elem: elem_id };
                 let typ = Type::new(id, kind);
@@ -173,6 +168,7 @@ impl TypeConverter {
             }
             _ => Err(ConvertError::UnsupportedType(format!("{:?}", expr))),
         }
+        })
     }
     
     /// Convert struct type

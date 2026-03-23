@@ -17,6 +17,7 @@
 //! ```rust,no_run
 //! use wooftype::core::TypeUniverse;
 //! use wooftype::query::QueryEngine;
+//! use wooftype::core::types::PrimitiveType;
 //! use std::sync::Arc;
 //!
 //! #[tokio::main]
@@ -25,7 +26,8 @@
 //!     let engine = QueryEngine::new(universe);
 //!     
 //!     // Query types
-//!     let results = engine.query_by_fingerprint(...);
+//!     let fingerprint = PrimitiveType::Int.fingerprint();
+//!     let results = engine.query_by_fingerprint(fingerprint);
 //! }
 //! ```
 
@@ -81,13 +83,16 @@ pub fn init_logging() {
 /// Build information
 pub mod build {
     /// Build timestamp
-    pub const TIMESTAMP: &str = env!("VERGEN_BUILD_TIMESTAMP", "unknown");
+    pub const TIMESTAMP: &str = "unknown";
     
     /// Git commit
-    pub const GIT_COMMIT: &str = env!("VERGEN_GIT_SHA", "unknown");
+    pub const GIT_COMMIT: &str = "unknown";
     
     /// Target triple
-    pub const TARGET: &str = env!("VERGEN_CARGO_TARGET_TRIPLE", "unknown");
+    pub const TARGET: &str = match option_env!("TARGET") {
+        Some(t) => t,
+        None => "unknown",
+    };
 }
 
 #[cfg(test)]

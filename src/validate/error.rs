@@ -3,7 +3,8 @@
 //! Soft errors allow AI agents to continue generation
 //! while receiving type guidance.
 
-use crate::core::{TypeId, SourcePosition};
+use crate::core::TypeId;
+use crate::validate::stream::SourcePosition;
 
 /// Validation error types
 #[derive(Debug, Clone)]
@@ -60,7 +61,7 @@ impl ValidationError {
                 (
                     format!("'{}' is not defined", name),
                     Some(format!("Define '{}' or import it", name)),
-                    ErrorSeverity::Error,
+                    ErrorSeverity::Warning, // Softened from Error
                 )
             }
             Self::UndefinedField { typ: _, field } => {

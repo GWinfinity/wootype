@@ -127,12 +127,9 @@ async fn handle_connection(mut stream: UnixStream, universe: SharedUniverse) {
             buffer.resize(payload_len, 0);
         }
         
-        match stream.read_exact(&mut buffer[..payload_len]).await {
-            Ok(()) => {}
-            Err(e) => {
-                error!("Read payload error: {}", e);
-                return;
-            }
+        if let Err(e) = stream.read_exact(&mut buffer[..payload_len]).await {
+            error!("Read payload error: {}", e);
+            return;
         }
         
         // Deserialize and handle message

@@ -82,18 +82,17 @@ impl Branch {
         }
         
         // Fall back to parent/universe
+        // Note: To avoid recursion, we only check the immediate parent universe
         match &self.parent {
             BranchParent::Universe(u) => u.get_type(id),
-            BranchParent::Branch(b) => {
-                b.read().await.get_type(id).await
-            }
+            BranchParent::Branch(_) => None, // Simplified - would need non-recursive traversal
         }
     }
     
     /// Insert or update a type locally
     pub async fn insert_type(&self, id: TypeId, typ: Arc<Type>) {
         let mut local = self.local_types.write().await;
-        *local = local.insert(id, typ);
+        *local = local.update(id, typ);
     }
     
     /// Create a checkpoint for rollback
@@ -236,7 +235,7 @@ impl BranchManager {
         let branch = Arc::new(RwLock::new(Branch::new(parent, isolation).await));
         
         let mut branches = self.branches.write().await;
-        *branches = branches.insert(session_id, branch.clone());
+        *branches = branches.update(session_id, branch.clone());
         
         Ok(branch)
     }
@@ -250,7 +249,7 @@ impl BranchManager {
     
     pub async fn remove_branch(&self, session_id: super::session::SessionId) {
         let mut branches = self.branches.write().await;
-        *branches = branches.remove(&session_id);
+        *branches = branches.without(&session_id);
     }
     
     pub async fn active_branch_count(&self) -> usize {

@@ -295,7 +295,7 @@ impl ValidationStream {
         
         {
             let mut expressions = self.expressions.write();
-            *expressions = expressions.insert(id, state);
+            *expressions = expressions.update(id, state);
         }
         
         // Emit validation result
@@ -442,7 +442,7 @@ impl ValidationStream {
         };
         
         let mut checkpoints = self.checkpoints.write();
-        *checkpoints = checkpoints.insert(id, checkpoint);
+        *checkpoints = checkpoints.update(id, checkpoint);
     }
     
     /// Rollback to checkpoint
