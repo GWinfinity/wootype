@@ -243,4 +243,59 @@ mod tests {
         
         assert_eq!(inner.lookup(sym), Some(entity));
     }
+    
+    #[test]
+    fn test_symbol_table_creation() {
+        let table = SymbolTable::new();
+        // Table pre-interns empty string, so not empty
+        assert!(!table.is_empty());
+        assert!(table.len() >= 1);
+    }
+    
+    #[test]
+    fn test_symbol_lookup_missing() {
+        let table = SymbolTable::new();
+        assert!(table.lookup(None, "missing").is_none());
+        assert!(table.get(SymbolId::new(999)).is_none());
+    }
+    
+    #[test]
+    fn test_scope_contains() {
+        let mut scope = Scope::new();
+        let sym = SymbolId::new(1);
+        let entity = crate::core::Entity::new(1, 1).unwrap();
+        
+        assert!(!scope.contains(sym));
+        scope.insert(sym, entity);
+        assert!(scope.contains(sym));
+    }
+    
+    #[test]
+    fn test_deep_scope_chain() {
+        let mut scope1 = Scope::new();
+        let sym1 = SymbolId::new(1);
+        let entity1 = crate::core::Entity::new(1, 1).unwrap();
+        scope1.insert(sym1, entity1);
+        
+        let mut scope2 = Scope::with_parent(scope1);
+        let sym2 = SymbolId::new(2);
+        let entity2 = crate::core::Entity::new(2, 1).unwrap();
+        scope2.insert(sym2, entity2);
+        
+        let scope3 = Scope::with_parent(scope2);
+        
+        // Should find both symbols through chain
+        assert_eq!(scope3.lookup(sym1), Some(entity1));
+        assert_eq!(scope3.lookup(sym2), Some(entity2));
+    }
+    
+    #[test]
+    fn test_symbol_info() {
+        let table = SymbolTable::new();
+        let id = table.intern("test_symbol");
+        
+        let symbol = table.get(id).unwrap();
+        assert_eq!(symbol.name.as_ref(), "test_symbol");
+        assert_eq!(symbol.id, id);
+    }
 }

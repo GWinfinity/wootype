@@ -282,4 +282,60 @@ mod tests {
         assert!(!soft.is_blocking());
         assert!(soft.suggestion.is_some());
     }
+    
+    #[test]
+    fn test_error_collection_empty() {
+        let collection = ErrorCollection::new();
+        assert!(collection.is_empty());
+        assert!(!collection.has_errors());
+        assert_eq!(collection.len(), 0);
+    }
+    
+    #[test]
+    fn test_severity_levels() {
+        use super::ErrorSeverity;
+        
+        let hint = SoftError::new("hint").with_severity(ErrorSeverity::Hint);
+        let warning = SoftError::new("warning").with_severity(ErrorSeverity::Warning);
+        let error = SoftError::new("error").with_severity(ErrorSeverity::Error);
+        
+        assert!(!hint.is_blocking());
+        assert!(!warning.is_blocking());
+        assert!(error.is_blocking());
+    }
+    
+    #[test]
+    fn test_error_display() {
+        let error = ValidationError::UndefinedIdentifier("x".to_string());
+        let soft = error.soften();
+        assert!(!soft.message.is_empty());
+    }
+    
+    #[test]
+    fn test_error_filtering() {
+        let mut collection = ErrorCollection::new();
+        
+        collection.add_soft_error(
+            SoftError::new("hint").with_severity(ErrorSeverity::Hint)
+        );
+        collection.add_soft_error(
+            SoftError::new("error").with_severity(ErrorSeverity::Error)
+        );
+        
+        let warnings_and_above = collection.filter_by_severity(ErrorSeverity::Warning);
+        assert_eq!(warnings_and_above.len(), 1);
+    }
+    
+    #[test]
+    fn test_located_error() {
+        use super::super::stream::SourcePosition;
+        
+        let error = ValidationError::CyclicType;
+        let position = SourcePosition::new(10, 5, 100);
+        let located = LocatedError::new(error, position, "test context");
+        
+        let formatted = located.format();
+        assert!(formatted.contains("10"));
+        assert!(formatted.contains("test context"));
+    }
 }
