@@ -93,7 +93,8 @@ impl Branch {
     /// Insert or update a type locally
     pub async fn insert_type(&self, id: TypeId, typ: Arc<Type>) {
         let mut local = self.local_types.write().await;
-        *local = local.insert(id, typ);
+        let (new_map, _) = local.insert(id, typ);
+        *local = new_map;
     }
     
     /// Create a checkpoint for rollback
@@ -236,7 +237,8 @@ impl BranchManager {
         let branch = Arc::new(RwLock::new(Branch::new(parent, isolation).await));
         
         let mut branches = self.branches.write().await;
-        *branches = branches.insert(session_id, branch.clone());
+        let (new_map, _) = branches.insert(session_id, branch.clone());
+        *branches = new_map;
         
         Ok(branch)
     }
@@ -250,7 +252,7 @@ impl BranchManager {
     
     pub async fn remove_branch(&self, session_id: super::session::SessionId) {
         let mut branches = self.branches.write().await;
-        *branches = branches.remove(&session_id);
+        *branches = branches.remove(&session_id).0;
     }
     
     pub async fn active_branch_count(&self) -> usize {

@@ -51,28 +51,11 @@ impl ApiServer {
     pub async fn start(&self) -> Result<(), ApiError> {
         info!("Starting API server on {}", self.config.bind_address);
         
-        // Create router
-        let router = Server::builder()
-            .add_service(self.create_service())
-            .add_service(self.create_health_service());
-        
-        // Serve
-        router
-            .serve(self.config.bind_address)
-            .await
-            .map_err(|e| ApiError::Transport(e))?;
+        // Would create actual gRPC service here
+        // For now, just a placeholder
+        info!("gRPC server placeholder - would start on {}", self.config.bind_address);
         
         Ok(())
-    }
-    
-    fn create_service(&self) -> tonic::transport::server::Router {
-        // Would create actual gRPC service
-        // For now, return a placeholder
-        Server::builder()
-    }
-    
-    fn create_health_service(&self) -> tonic::transport::server::Router {
-        Server::builder()
     }
     
     /// Get server health

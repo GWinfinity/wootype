@@ -81,13 +81,13 @@ pub fn init_logging() {
 /// Build information
 pub mod build {
     /// Build timestamp
-    pub const TIMESTAMP: &str = env!("VERGEN_BUILD_TIMESTAMP", "unknown");
+    pub const TIMESTAMP: &str = "unknown";
     
     /// Git commit
-    pub const GIT_COMMIT: &str = env!("VERGEN_GIT_SHA", "unknown");
+    pub const GIT_COMMIT: &str = "unknown";
     
     /// Target triple
-    pub const TARGET: &str = env!("VERGEN_CARGO_TARGET_TRIPLE", "unknown");
+    pub const TARGET: &str = option_env!("TARGET").unwrap_or("unknown");
 }
 
 #[cfg(test)]

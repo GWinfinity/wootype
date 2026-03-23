@@ -3,7 +3,8 @@
 //! Soft errors allow AI agents to continue generation
 //! while receiving type guidance.
 
-use crate::core::{TypeId, SourcePosition};
+use crate::core::TypeId;
+use crate::validate::stream::SourcePosition;
 
 /// Validation error types
 #[derive(Debug, Clone)]

@@ -3,7 +3,8 @@
 //! Implements the type system service API.
 
 use crate::core::{SharedUniverse, TypeId};
-use crate::query::{QueryEngine, QueryResult, TypeConstraint};
+use crate::query::QueryEngine;
+use crate::query::engine::{QueryResult, TypeConstraint};
 use crate::agent::{AgentCoordinator, AgentId, SessionId, AgentType, ConnectionRequest};
 use crate::validate::{StreamingChecker, ValidationStream};
 

@@ -198,7 +198,7 @@ pub enum Stmt {
     Block(BlockStmt),
     If { cond: Expr, body: BlockStmt, else_: Option<Box<Stmt>> },
     Switch { tag: Option<Expr>, body: BlockStmt },
-    TypeSwitch { assign: Stmt, body: BlockStmt },
+    TypeSwitch { assign: Box<Stmt>, body: BlockStmt },
     Select(Vec<CommClause>),
     For { init: Option<Box<Stmt>>, cond: Option<Expr>, post: Option<Box<Stmt>>, body: BlockStmt },
     Range { key: Option<Expr>, value: Option<Expr>, range: Expr, body: BlockStmt },
