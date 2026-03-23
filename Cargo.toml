@@ -7,7 +7,7 @@ description = "Type System as a Service - Rust-powered Go type checker for AI Ag
 
 [dependencies]
 # Core async runtime
-tokio = { version = "1.35", features = ["full", "rt-multi-thread"] }
+tokio = { version = "1.35", features = ["rt-multi-thread", "macros", "sync", "time", "io-util", "net", "fs", "process"] }
 
 # Concurrent data structures
 dashmap = "5.5"
@@ -25,13 +25,13 @@ tonic-reflection = "0.12"
 
 # WebSocket
 tokio-tungstenite = "0.24"
-axum = { version = "0.7", features = ["ws"] }
-tower-http = { version = "0.6", features = ["cors"] }
+axum = { version = "0.7", default-features = false, features = ["ws", "tokio", "http1", "json"] }
+tower-http = { version = "0.6", default-features = false, features = ["cors"] }
 futures-util = "0.3"
 tokio-stream = "0.1"
 
 # HTTP
-hyper = { version = "1.0", features = ["full"] }
+hyper = { version = "1.0", default-features = false, features = ["server", "http1", "http2"] }
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
@@ -56,7 +56,7 @@ interprocess = "1.2"
 salsa = { git = "https://github.com/salsa-rs/salsa", branch = "master" }
 
 # Utilities
-uuid = { version = "1.6", features = ["v4", "serde"] }
+uuid = { version = "1.6", default-features = false, features = ["v4", "serde", "rng"] }
 bitflags = "2.4"
 indexmap = "2.1"
 arc-swap = "1.6"
@@ -64,9 +64,9 @@ crossbeam = "0.8"
 rayon = "1.8"
 rand = "0.8"
 bincode = "1.3"
-regex = "1.10"
+regex = { version = "1.10", default-features = false, features = ["std", "unicode-perl"] }
 dirs = "5.0"
-clap = { version = "4.4", features = ["derive"] }
+clap = { version = "4.4", default-features = false, features = ["std", "derive", "help", "usage", "error-context"] }
 
 # LSP
 lsp-types = "0.95"
@@ -100,3 +100,4 @@ opt-level = 3
 lto = "fat"
 codegen-units = 1
 panic = "abort"
+strip = true
