@@ -1,4 +1,4 @@
-//! Wooftype - Type System as a Service for Go
+//! Wootype - Type System as a Service for Go
 //! 
 //! A Rust-powered type checker providing zero-latency type queries
 //! for AI coding assistants.
@@ -15,9 +15,9 @@
 //! # Example Usage
 //!
 //! ```rust,no_run
-//! use wooftype::core::TypeUniverse;
-//! use wooftype::query::QueryEngine;
-//! use wooftype::core::types::PrimitiveType;
+//! use wootype::core::TypeUniverse;
+//! use wootype::query::QueryEngine;
+//! use wootype::core::types::PrimitiveType;
 //! use std::sync::Arc;
 //!
 //! #[tokio::main]
@@ -41,6 +41,14 @@ pub mod agent;
 pub mod bridge;
 pub mod api;
 pub mod parser;
+pub mod daemon;
+pub mod salsa;
+
+/// Full Salsa integration with advanced features
+pub mod salsa_full;
+
+/// Semantic OS - Complete gopls replacement
+pub mod semantic;
 
 // Re-export agent types for convenience
 pub use agent::{

@@ -23,7 +23,7 @@ pub struct BridgeConfig {
 impl Default for BridgeConfig {
     fn default() -> Self {
         Self {
-            socket_path: PathBuf::from("/tmp/wooftype.sock"),
+            socket_path: PathBuf::from("/tmp/wootype.sock"),
             max_connections: 10,
             message_timeout_ms: 5000,
         }

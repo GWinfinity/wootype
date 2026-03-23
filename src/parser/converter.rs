@@ -1,6 +1,6 @@
 //! AST to TypeUniverse converter
 //! 
-//! Converts Go AST nodes to wooftype type representations.
+//! Converts Go AST nodes to wootype type representations.
 
 use crate::core::{SharedUniverse, Type, TypeId, TypeKind, PrimitiveType, Entity};
 use crate::core::types::{StructField, FuncParam, InterfaceMethod, ChanDir, TypeFingerprint};

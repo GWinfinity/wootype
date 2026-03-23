@@ -1,4 +1,4 @@
-# Wooftype - Type System as a Service for Go
+# Wootype - Type System as a Service for Go
 
 A Rust-powered type checker providing zero-latency type queries for AI coding assistants.
 
@@ -87,25 +87,25 @@ A Rust-powered type checker providing zero-latency type queries for AI coding as
 
 ```bash
 # Start the daemon
-wooftype daemon --preload-stdlib
+wootype daemon --preload-stdlib
 
 # Connect as an AI Agent
-wooftype connect --name "Cursor" --agent-type cursor
+wootype connect --name "Cursor" --agent-type cursor
 
 # Import a package
-wooftype import github.com/example/mypackage
+wootype import github.com/example/mypackage
 
 # Query types
-wooftype query --type int --package main
+wootype query --type int --package main
 
 # Validate expression
-wooftype validate --session <id> --expr "x + 1"
+wootype validate --session <id> --expr "x + 1"
 ```
 
 ### API Example
 
 ```rust
-use wooftype::prelude::*;
+use wootype::prelude::*;
 use std::sync::Arc;
 
 #[tokio::main]
@@ -151,11 +151,14 @@ async fn main() {
 - [x] IPC bridge to Go compiler
 - [x] Basic gRPC API
 
-### Phase 2: Servicefication (Future)
-- [ ] Full gopls replacement
-- [ ] WebSocket API
-- [ ] Persistent type environment
-- [ ] Distributed type service
+### Phase 2: Servicefication ✅
+- [x] gRPC API (TypeDaemon service)
+- [x] WebSocket API
+- [x] Standalone daemon (`wootype-daemon`)
+- [x] Multi-protocol support (gRPC + WebSocket + IPC)
+- [x] Client SDK and examples
+
+See [PHASE2_SERVICIFICATION.md](docs/PHASE2_SERVICIFICATION.md) for details.
 
 ### Phase 3: Semantic OS (Future)
 - [ ] Complex cross-module queries

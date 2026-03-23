@@ -38,7 +38,7 @@ impl GoCompilerShim {
         self
     }
     
-    /// Start gopls in stdio mode and bridge to wooftype
+    /// Start gopls in stdio mode and bridge to wootype
     pub async fn start_gopls_bridge(&self) -> Result<GoplsBridge, ShimError> {
         let gopls_path = self.gopls_path.clone()
             .unwrap_or_else(|| "gopls".to_string());
@@ -65,7 +65,7 @@ impl GoCompilerShim {
         })
     }
     
-    /// Run go build with wooftype type checking
+    /// Run go build with wootype type checking
     pub async fn go_build(&self, package: &str) -> Result<BuildResult, ShimError> {
         info!("Running go build for: {}", package);
         
@@ -126,9 +126,9 @@ impl GoplsBridge {
         Ok(())
     }
     
-    /// Forward LSP request to wooftype for type checking
+    /// Forward LSP request to wootype for type checking
     pub async fn handle_lsp_request(&self, _request: &str) -> Result<String, ShimError> {
-        // Parse LSP request, potentially use wooftype for type operations
+        // Parse LSP request, potentially use wootype for type operations
         // Then forward to gopls or respond directly
         
         Ok(r#"{"jsonrpc":"2.0","id":1,"result":null}"#.to_string())

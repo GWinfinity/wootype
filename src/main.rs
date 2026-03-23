@@ -1,21 +1,21 @@
-//! Wooftype Daemon - Type System as a Service
+//! Wootype Daemon - Type System as a Service
 //!
-//! CLI entry point for the wooftype type checking service.
+//! CLI entry point for the wootype type checking service.
 //!
 //! # Usage
 //!
 //! ```bash
 //! # Start the daemon
-//! wooftype daemon
+//! wootype daemon
 //!
 //! # Import a package
-//! wooftype import github.com/example/mypackage
+//! wootype import github.com/example/mypackage
 //!
 //! # Query types
-//! wooftype query --session <id> --type int
+//! wootype query --session <id> --type int
 //!
 //! # Validate expression
-//! wooftype validate --session <id> --expr "x + 1"
+//! wootype validate --session <id> --expr "x + 1"
 //! ```
 
 use clap::{Parser, Subcommand};
@@ -23,14 +23,14 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tracing::{info, error};
 
-use wooftype::core::{TypeUniverse, TypeId};
-use wooftype::agent::{AgentCoordinator, AgentSession, SessionConfig, AgentType};
-use wooftype::bridge::{IpcBridge, BridgeConfig};
-use wooftype::api::{ApiServer, ApiConfig};
+use wootype::core::{TypeUniverse, TypeId};
+use wootype::agent::{AgentCoordinator, AgentSession, SessionConfig, AgentType};
+use wootype::bridge::{IpcBridge, BridgeConfig};
+use wootype::api::{ApiServer, ApiConfig};
 
-/// Wooftype CLI
+/// Wootype CLI
 #[derive(Parser)]
-#[command(name = "wooftype")]
+#[command(name = "wootype")]
 #[command(about = "Type System as a Service for Go")]
 #[command(version)]
 struct Cli {
@@ -52,7 +52,7 @@ enum Commands {
     /// Start the type daemon
     Daemon {
         /// IPC socket path
-        #[arg(short, long, default_value = "/tmp/wooftype.sock")]
+        #[arg(short, long, default_value = "/tmp/wootype.sock")]
         socket: PathBuf,
         
         /// gRPC bind address
@@ -143,7 +143,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_env_filter(&cli.log_level)
         .init();
     
-    info!("Wooftype v{}", env!("CARGO_PKG_VERSION"));
+    info!("Wootype v{}", env!("CARGO_PKG_VERSION"));
     
     match cli.command {
         Commands::Daemon { socket, grpc_addr, preload_stdlib } => {
@@ -178,7 +178,7 @@ async fn run_daemon(
     grpc_addr: String,
     preload_stdlib: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    info!("Starting wooftype daemon");
+    info!("Starting wootype daemon");
     info!("IPC socket: {:?}", socket);
     info!("gRPC address: {}", grpc_addr);
     
@@ -189,7 +189,7 @@ async fn run_daemon(
     // Preload stdlib if requested
     if preload_stdlib {
         info!("Preloading stdlib packages...");
-        let importer = wooftype::parser::PackageImporter::new(universe.clone());
+        let importer = wootype::parser::PackageImporter::new(universe.clone());
         let results = importer.preload_stdlib().await;
         let total_imported: usize = results.iter().map(|r| r.types_imported).sum();
         info!("Preloaded {} types from stdlib", total_imported);
@@ -237,7 +237,7 @@ async fn run_import(package: String, _recursive: bool) -> Result<(), Box<dyn std
     info!("Importing package: {}", package);
     
     let universe = Arc::new(TypeUniverse::new());
-    let importer = wooftype::parser::PackageImporter::new(universe);
+    let importer = wootype::parser::PackageImporter::new(universe);
     
     match importer.import(&package).await {
         Ok(result) => {
@@ -262,7 +262,7 @@ async fn run_query(
     pattern: Option<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let universe = Arc::new(TypeUniverse::new());
-    let engine = wooftype::query::QueryEngine::new(universe);
+    let engine = wootype::query::QueryEngine::new(universe);
     
     info!("Querying types...");
     
@@ -320,24 +320,24 @@ async fn run_connect(
     };
     
     let isolation_level = match isolation.as_str() {
-        "full" => wooftype::agent::IsolationLevel::Full,
-        "shared" => wooftype::agent::IsolationLevel::SharedRead,
-        "snapshot" => wooftype::agent::IsolationLevel::Snapshot,
-        _ => wooftype::agent::IsolationLevel::Full,
+        "full" => wootype::agent::IsolationLevel::Full,
+        "shared" => wootype::agent::IsolationLevel::SharedRead,
+        "snapshot" => wootype::agent::IsolationLevel::Snapshot,
+        _ => wootype::agent::IsolationLevel::Full,
     };
     
-    let conn_request = wooftype::agent::coordinator::ConnectionRequest {
-        agent_id: wooftype::agent::AgentId::new(1),
+    let conn_request = wootype::agent::coordinator::ConnectionRequest {
+        agent_id: wootype::agent::AgentId::new(1),
         name,
         agent_type,
         preferred_isolation: Some(isolation_level),
     };
     
     match coordinator.connect(conn_request).await {
-        wooftype::agent::coordinator::ConnectionResult::Connected { session_id } => {
+        wootype::agent::coordinator::ConnectionResult::Connected { session_id } => {
             info!("Connected! Session ID: {}", session_id.0);
         }
-        wooftype::agent::coordinator::ConnectionResult::Rejected { reason } => {
+        wootype::agent::coordinator::ConnectionResult::Rejected { reason } => {
             error!("Connection rejected: {:?}", reason);
         }
     }
@@ -347,7 +347,7 @@ async fn run_connect(
 
 /// Show status
 async fn run_status() -> Result<(), Box<dyn std::error::Error>> {
-    info!("Wooftype Status");
+    info!("Wootype Status");
     info!("Version: {}", env!("CARGO_PKG_VERSION"));
     
     // Would show actual status
@@ -360,7 +360,7 @@ async fn run_bench(kind: String) -> Result<(), Box<dyn std::error::Error>> {
     info!("Running benchmarks: {}", kind);
     
     let universe = Arc::new(TypeUniverse::new());
-    let engine = wooftype::query::QueryEngine::new(universe);
+    let engine = wootype::query::QueryEngine::new(universe);
     
     // Type query benchmark
     let start = std::time::Instant::now();

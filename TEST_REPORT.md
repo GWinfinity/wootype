@@ -1,4 +1,4 @@
-# Wooftype Phase 1 - 测试报告
+# Wootype Phase 1 - 测试报告
 
 ## 测试日期
 2026-03-23

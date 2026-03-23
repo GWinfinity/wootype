@@ -1,4 +1,4 @@
-//! Basic usage example for Wooftype Phase 1
+//! Basic usage example for Wootype Phase 1
 //! 
 //! This example demonstrates the core functionality of the type system.
 
@@ -6,23 +6,23 @@ use std::sync::Arc;
 
 fn main() {
     println!("\n========================================");
-    println!("   Wooftype Phase 1 - Basic Usage Demo");
+    println!("   Wootype Phase 1 - Basic Usage Demo");
     println!("========================================\n");
     
     // 1. Create Type Universe
     println!("1. Creating Type Universe...");
-    let universe = Arc::new(wooftype::core::TypeUniverse::new());
+    let universe = Arc::new(wootype::core::TypeUniverse::new());
     println!("   ✓ Universe created with {} primitive types\n", universe.type_count());
     
     // 2. Create Query Engine
     println!("2. Creating Query Engine...");
-    let engine = wooftype::query::QueryEngine::new(universe.clone());
+    let engine = wootype::query::QueryEngine::new(universe.clone());
     println!("   ✓ Query Engine ready\n");
     
     // 3. Query primitive types
     println!("3. Querying primitive types...");
     for i in 1..=5 {
-        let type_id = wooftype::core::TypeId(i);
+        let type_id = wootype::core::TypeId(i);
         if let Some(typ) = engine.get_type(type_id) {
             println!("   ✓ Type[{}]: {:?}", i, typ.kind);
         }
@@ -31,7 +31,7 @@ fn main() {
     
     // 4. Test symbol interning
     println!("4. Testing symbol interning...");
-    let symbols = wooftype::core::symbol::SymbolTable::new();
+    let symbols = wootype::core::symbol::SymbolTable::new();
     let sym1 = symbols.intern("MyType");
     let sym2 = symbols.intern("MyType");
     let sym3 = symbols.intern("OtherType");
@@ -44,7 +44,7 @@ fn main() {
     
     // 5. Test type fingerprints
     println!("5. Testing type fingerprints...");
-    use wooftype::core::types::PrimitiveType;
+    use wootype::core::types::PrimitiveType;
     
     let int_fp = PrimitiveType::Int.fingerprint();
     let int_fp2 = PrimitiveType::Int.fingerprint();
@@ -58,7 +58,7 @@ fn main() {
     
     // 6. Test query cache
     println!("6. Testing query cache...");
-    use wooftype::query::cache::QueryCache;
+    use wootype::query::cache::QueryCache;
     
     let cache = QueryCache::<String, String>::new(100);
     cache.insert("query:int".to_string(), "integer type".to_string());
@@ -74,7 +74,7 @@ fn main() {
     
     // 7. Test error handling
     println!("7. Testing soft error handling...");
-    use wooftype::validate::error::{ErrorCollection, SoftError, ErrorSeverity};
+    use wootype::validate::error::{ErrorCollection, SoftError, ErrorSeverity};
     
     let mut errors = ErrorCollection::new();
     errors.add_soft_error(

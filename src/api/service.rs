@@ -68,14 +68,14 @@ pub enum TypeQuery {
 }
 
 /// Type query response
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct TypeQueryResponse {
     pub results: Vec<TypeResult>,
     pub latency_us: u64,
 }
 
 /// Single type result
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct TypeResult {
     pub type_id: u64,
     pub name: String,
@@ -109,7 +109,7 @@ pub struct ValidateResponse {
     pub latency_us: u64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct ValidationError {
     pub message: String,
     pub severity: String,

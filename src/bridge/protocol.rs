@@ -14,7 +14,7 @@ pub enum Message {
     Heartbeat,
 }
 
-/// Request from Go compiler to wooftype
+/// Request from Go compiler to wootype
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Request {
     /// Query type by ID
@@ -72,7 +72,7 @@ pub struct SourcePosition {
     pub offset: u32,
 }
 
-/// Response from wooftype to Go compiler
+/// Response from wootype to Go compiler
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Response {
     Type(Option<Type>),

@@ -6,8 +6,8 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use std::sync::Arc;
 
 fn bench_type_lookup(c: &mut Criterion) {
-    use wooftype::core::{TypeUniverse, TypeId};
-    use wooftype::query::QueryEngine;
+    use wootype::core::{TypeUniverse, TypeId};
+    use wootype::query::QueryEngine;
     
     let universe = Arc::new(TypeUniverse::new());
     let engine = QueryEngine::new(universe);
@@ -20,7 +20,7 @@ fn bench_type_lookup(c: &mut Criterion) {
 }
 
 fn bench_symbol_intern(c: &mut Criterion) {
-    use wooftype::core::symbol::SymbolTable;
+    use wootype::core::symbol::SymbolTable;
     
     let table = SymbolTable::new();
     
@@ -35,7 +35,7 @@ fn bench_symbol_intern(c: &mut Criterion) {
 }
 
 fn bench_cache_operations(c: &mut Criterion) {
-    use wooftype::query::cache::QueryCache;
+    use wootype::query::cache::QueryCache;
     
     let cache = QueryCache::<String, i32>::new(1000);
     
@@ -64,7 +64,7 @@ fn bench_cache_operations(c: &mut Criterion) {
 }
 
 fn bench_fingerprint_calculation(c: &mut Criterion) {
-    use wooftype::core::types::PrimitiveType;
+    use wootype::core::types::PrimitiveType;
     
     c.bench_function("fingerprint_calc", |b| {
         b.iter(|| {
@@ -74,7 +74,7 @@ fn bench_fingerprint_calculation(c: &mut Criterion) {
 }
 
 fn bench_type_flags_ops(c: &mut Criterion) {
-    use wooftype::core::types::TypeFlags;
+    use wootype::core::types::TypeFlags;
     
     let flags1 = TypeFlags::BASIC | TypeFlags::COMPARABLE;
     let flags2 = TypeFlags::POINTER | TypeFlags::NILABLE;

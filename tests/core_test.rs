@@ -5,7 +5,7 @@ use std::sync::Arc;
 /// Test TypeUniverse creation and basic operations
 #[test]
 fn test_type_universe_creation() {
-    use wooftype::core::TypeUniverse;
+    use wootype::core::TypeUniverse;
     
     let universe = TypeUniverse::new();
     
@@ -17,21 +17,21 @@ fn test_type_universe_creation() {
 /// Test query engine creation
 #[test]
 fn test_query_engine_creation() {
-    use wooftype::core::TypeUniverse;
-    use wooftype::query::QueryEngine;
+    use wootype::core::TypeUniverse;
+    use wootype::query::QueryEngine;
     
     let universe = Arc::new(TypeUniverse::new());
     let engine = QueryEngine::new(universe);
     
     // Should be able to query primitives
-    let result = engine.get_type(wooftype::core::TypeId(1));
+    let result = engine.get_type(wootype::core::TypeId(1));
     println!("✓ QueryEngine created, primitive lookup: {:?}", result.is_some());
 }
 
 /// Test symbol interning
 #[test]
 fn test_symbol_interning() {
-    use wooftype::core::symbol::SymbolTable;
+    use wootype::core::symbol::SymbolTable;
     
     let table = SymbolTable::new();
     
@@ -45,7 +45,7 @@ fn test_symbol_interning() {
 /// Test type fingerprint
 #[test]
 fn test_type_fingerprint() {
-    use wooftype::core::types::{TypeFingerprint, PrimitiveType};
+    use wootype::core::types::{TypeFingerprint, PrimitiveType};
     
     let fp1 = PrimitiveType::Int.fingerprint();
     let fp2 = PrimitiveType::Int.fingerprint();
@@ -59,7 +59,7 @@ fn test_type_fingerprint() {
 /// Test cache operations
 #[test]
 fn test_query_cache() {
-    use wooftype::query::cache::QueryCache;
+    use wootype::query::cache::QueryCache;
     
     let cache = QueryCache::<String, i32>::new(100);
     
@@ -77,7 +77,7 @@ fn test_query_cache() {
 /// Test error collection
 #[test]
 fn test_error_collection() {
-    use wooftype::validate::error::{ErrorCollection, SoftError, ErrorSeverity};
+    use wootype::validate::error::{ErrorCollection, SoftError, ErrorSeverity};
     
     let mut collection = ErrorCollection::new();
     
@@ -93,7 +93,7 @@ fn test_error_collection() {
 /// Run all tests
 fn main() {
     println!("\n========================================");
-    println!("   Wooftype Phase 1 Core Tests");
+    println!("   Wootype Phase 1 Core Tests");
     println!("========================================\n");
     
     test_type_universe_creation();

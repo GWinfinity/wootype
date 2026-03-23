@@ -1,8 +1,8 @@
 [package]
-name = "wooftype"
+name = "wootype"
 version = "0.1.0"
 edition = "2021"
-authors = ["Wooftype Team"]
+authors = ["Wootype Team"]
 description = "Type System as a Service - Rust-powered Go type checker for AI Agents"
 
 [dependencies]
@@ -18,9 +18,20 @@ parking_lot = "0.12"
 im = "15.1"
 
 # gRPC for AI Agent API
-tonic = "0.10"
-prost = "0.12"
-tower = "0.4"
+tonic = { version = "0.12", features = ["tls"] }
+prost = "0.13"
+tower = "0.5"
+tonic-reflection = "0.12"
+
+# WebSocket
+tokio-tungstenite = "0.24"
+axum = { version = "0.7", features = ["ws"] }
+tower-http = { version = "0.6", features = ["cors"] }
+futures-util = "0.3"
+tokio-stream = "0.1"
+
+# HTTP
+hyper = { version = "1.0", features = ["full"] }
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
@@ -32,6 +43,7 @@ ropey = "1.6"
 # Error handling
 thiserror = "1.0"
 anyhow = "1.0"
+ariadne = "0.5"  # Beautiful error messages
 
 # Logging and tracing
 tracing = "0.1"
@@ -40,6 +52,9 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # IPC and shared memory
 interprocess = "1.2"
 
+# Incremental computation - Full Salsa framework
+salsa = { git = "https://github.com/salsa-rs/salsa", branch = "master" }
+
 # Utilities
 uuid = { version = "1.6", features = ["v4", "serde"] }
 bitflags = "2.4"
@@ -47,11 +62,15 @@ indexmap = "2.1"
 arc-swap = "1.6"
 crossbeam = "0.8"
 rayon = "1.8"
+rand = "0.8"
 bincode = "1.3"
 regex = "1.10"
 dirs = "5.0"
-rand = "0.8"
 clap = { version = "4.4", features = ["derive"] }
+
+# LSP
+lsp-types = "0.95"
+tower-lsp = "0.20"
 
 # SIMD support (nightly feature, fallback for stable)
 # stdsimd = { optional = true }
@@ -60,8 +79,20 @@ clap = { version = "4.4", features = ["derive"] }
 tokio-test = "0.4"
 criterion = { version = "0.5", features = ["async_tokio"] }
 
+[build-dependencies]
+tonic-build = "0.12"
+protoc-bin-vendored = "3.1"
+
+[[bin]]
+name = "wootype-daemon"
+path = "src/bin/daemon.rs"
+
 [[bench]]
 name = "query_benchmark"
+harness = false
+
+[[bench]]
+name = "incremental_benchmark"
 harness = false
 
 [profile.release]

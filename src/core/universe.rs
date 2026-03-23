@@ -83,7 +83,7 @@ impl SpeculativeTransaction {
     }
 }
 
-/// Central type universe - the semantic core of wooftype
+/// Central type universe - the semantic core of wootype
 pub struct TypeUniverse {
     // Entity generation
     entity_gen: EntityGenerator,

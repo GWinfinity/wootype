@@ -1,0 +1,308 @@
+syntax = "proto3";
+
+package wootype;
+
+option go_package = "github.com/wootype/api";
+
+// TypeDaemon service - Type System as a Service for Go
+service TypeDaemon {
+  // Health check
+  rpc Health(HealthRequest) returns (HealthResponse);
+  
+  // Agent connection management
+  rpc ConnectAgent(ConnectRequest) returns (ConnectResponse);
+  rpc DisconnectAgent(DisconnectRequest) returns (DisconnectResponse);
+  
+  // Type queries
+  rpc QueryType(QueryTypeRequest) returns (QueryTypeResponse);
+  rpc QueryByFingerprint(FingerprintRequest) returns (QueryTypeResponse);
+  rpc FindSimilarTypes(SimilarTypesRequest) returns (QueryTypeResponse);
+  rpc FindImplementors(ImplementorsRequest) returns (QueryTypeResponse);
+  
+  // Streaming queries for real-time feedback
+  rpc StreamQuery(stream QueryTypeRequest) returns (stream QueryTypeResponse);
+  
+  // Type validation
+  rpc ValidateExpression(ValidateRequest) returns (ValidateResponse);
+  rpc StreamValidate(stream StreamValidateRequest) returns (stream StreamValidateResponse);
+  
+  // Package management
+  rpc ImportPackage(ImportPackageRequest) returns (ImportPackageResponse);
+  rpc GetPackageInfo(PackageInfoRequest) returns (PackageInfoResponse);
+  
+  // Session management
+  rpc GetSessionInfo(SessionInfoRequest) returns (SessionInfoResponse);
+  rpc ListSessions(ListSessionsRequest) returns (ListSessionsResponse);
+  
+  // Advanced features
+  rpc CheckImplements(CheckImplementsRequest) returns (CheckImplementsResponse);
+  rpc GetTypeInference(InferenceRequest) returns (InferenceResponse);
+  rpc SemanticSearch(SemanticSearchRequest) returns (SemanticSearchResponse);
+}
+
+// Health check
+message HealthRequest {}
+
+message HealthResponse {
+  bool healthy = 1;
+  string version = 2;
+  ServerStats stats = 3;
+}
+
+message ServerStats {
+  uint64 uptime_seconds = 1;
+  uint64 requests_processed = 2;
+  uint32 active_sessions = 3;
+  uint64 memory_usage_bytes = 4;
+  uint64 type_count = 5;
+}
+
+// Agent connection
+message ConnectRequest {
+  string agent_name = 1;
+  string agent_type = 2;  // cursor, claude_code, copilot, etc.
+  string isolation_level = 3;  // full, shared, snapshot
+  map<string, string> metadata = 4;
+}
+
+message ConnectResponse {
+  bool success = 1;
+  string session_id = 2;
+  string message = 3;
+  SessionConfig config = 4;
+}
+
+message SessionConfig {
+  string session_id = 1;
+  uint32 max_concurrent_queries = 2;
+  uint32 query_timeout_ms = 3;
+  bool enable_streaming = 4;
+}
+
+message DisconnectRequest {
+  string session_id = 1;
+}
+
+message DisconnectResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// Type queries
+message QueryTypeRequest {
+  string session_id = 1;
+  oneof query {
+    TypeById by_id = 2;
+    TypeByName by_name = 3;
+    TypeByPattern by_pattern = 4;
+  }
+}
+
+message TypeById {
+  uint64 type_id = 1;
+}
+
+message TypeByName {
+  string package = 1;
+  string name = 2;
+}
+
+message TypeByPattern {
+  string pattern = 1;
+  bool fuzzy = 2;
+}
+
+message FingerprintRequest {
+  string session_id = 1;
+  bytes fingerprint = 2;
+}
+
+message SimilarTypesRequest {
+  string session_id = 1;
+  uint64 type_id = 2;
+  float threshold = 3;  // 0.0 - 1.0
+  uint32 max_results = 4;
+}
+
+message ImplementorsRequest {
+  string session_id = 1;
+  uint64 interface_id = 2;
+  uint32 max_results = 3;
+}
+
+message QueryTypeResponse {
+  repeated TypeInfo types = 1;
+  uint64 latency_micros = 2;
+  uint32 total_count = 3;
+}
+
+message TypeInfo {
+  uint64 id = 1;
+  string name = 2;
+  string package = 3;
+  string kind = 4;  // primitive, struct, interface, etc.
+  bytes fingerprint = 5;
+  string json_representation = 6;
+  float score = 7;  // relevance score for similarity search
+  repeated string methods = 8;
+  repeated string fields = 9;
+}
+
+// Validation
+message ValidateRequest {
+  string session_id = 1;
+  string expression = 2;
+  string file = 3;
+  uint32 line = 4;
+  uint32 column = 5;
+  uint64 expected_type_id = 6;  // optional
+}
+
+message ValidateResponse {
+  bool valid = 1;
+  TypeInfo inferred_type = 2;
+  repeated ValidationError errors = 3;
+  uint64 latency_micros = 4;
+}
+
+message ValidationError {
+  string message = 1;
+  Severity severity = 2;
+  uint32 line = 3;
+  uint32 column = 4;
+  string suggestion = 5;
+}
+
+enum Severity {
+  INFO = 0;
+  WARNING = 1;
+  ERROR = 2;
+  CRITICAL = 3;
+}
+
+// Streaming validation
+message StreamValidateRequest {
+  string session_id = 1;
+  string token = 2;
+  ValidationContext context = 3;
+  bool is_complete = 4;  // true for final validation
+}
+
+message ValidationContext {
+  string file = 1;
+  uint32 line = 2;
+  uint32 column = 3;
+  uint32 offset = 4;
+}
+
+message StreamValidateResponse {
+  string token = 1;
+  bool valid = 2;
+  TypeInfo inferred_type = 3;
+  repeated ValidationError errors = 4;
+  repeated string suggestions = 5;
+  bool is_final = 6;
+}
+
+// Package management
+message ImportPackageRequest {
+  string session_id = 1;
+  string package_path = 2;
+  bool recursive = 3;
+}
+
+message ImportPackageResponse {
+  bool success = 1;
+  uint32 types_imported = 2;
+  repeated string errors = 3;
+  PackageInfo package_info = 4;
+}
+
+message PackageInfoRequest {
+  string package_path = 1;
+}
+
+message PackageInfo {
+  string path = 1;
+  string name = 2;
+  string version = 3;
+  repeated string files = 4;
+  repeated string dependencies = 5;
+  uint32 type_count = 6;
+}
+
+message PackageInfoResponse {
+  PackageInfo info = 1;
+  bool found = 2;
+}
+
+// Session management
+message SessionInfoRequest {
+  string session_id = 1;
+}
+
+message SessionInfoResponse {
+  string session_id = 1;
+  string agent_name = 2;
+  string agent_type = 3;
+  uint64 connected_at = 4;
+  uint64 last_activity = 5;
+  uint32 query_count = 6;
+  SessionStats stats = 7;
+}
+
+message SessionStats {
+  uint64 total_queries = 1;
+  uint64 avg_latency_micros = 2;
+  uint64 cache_hit_rate = 3;  // per-mille
+}
+
+message ListSessionsRequest {
+  bool include_inactive = 1;
+}
+
+message ListSessionsResponse {
+  repeated SessionInfoResponse sessions = 1;
+}
+
+// Advanced features
+message CheckImplementsRequest {
+  string session_id = 1;
+  uint64 concrete_type_id = 2;
+  uint64 interface_type_id = 3;
+}
+
+message CheckImplementsResponse {
+  bool implements = 1;
+  repeated string missing_methods = 2;
+  repeated TypeMatch mismatches = 3;
+}
+
+message TypeMatch {
+  string method_name = 1;
+  string expected = 2;
+  string actual = 3;
+}
+
+message InferenceRequest {
+  string session_id = 1;
+  string expression = 2;
+  map<string, TypeInfo> context_types = 3;
+}
+
+message InferenceResponse {
+  TypeInfo inferred_type = 1;
+  float confidence = 2;
+  repeated TypeInfo alternatives = 3;
+}
+
+message SemanticSearchRequest {
+  string session_id = 1;
+  string query = 2;
+  uint32 max_results = 3;
+}
+
+message SemanticSearchResponse {
+  repeated TypeInfo results = 1;
+  repeated string related_packages = 2;
+}

@@ -1,4 +1,4 @@
-//! Integration tests for Wooftype Phase 1
+//! Integration tests for Wootype Phase 1
 //!
 //! These tests verify the interaction between multiple components.
 
@@ -7,8 +7,8 @@ use std::sync::Arc;
 /// Test complete workflow: Universe -> QueryEngine -> Cache
 #[test]
 fn test_end_to_end_type_query() {
-    use wooftype::core::{TypeUniverse, TypeId, types::PrimitiveType};
-    use wooftype::query::QueryEngine;
+    use wootype::core::{TypeUniverse, TypeId, types::PrimitiveType};
+    use wootype::query::QueryEngine;
     
     // Create universe with types
     let universe = Arc::new(TypeUniverse::new());
@@ -28,8 +28,8 @@ fn test_end_to_end_type_query() {
 /// Test Agent session workflow
 #[test]
 fn test_agent_session_lifecycle() {
-    use wooftype::core::TypeUniverse;
-    use wooftype::agent::{AgentCoordinator, ConnectionRequest, AgentId, AgentType};
+    use wootype::core::TypeUniverse;
+    use wootype::agent::{AgentCoordinator, ConnectionRequest, AgentId, AgentType};
     
     let universe = Arc::new(TypeUniverse::new());
     let coordinator = Arc::new(AgentCoordinator::new(universe));
@@ -49,8 +49,8 @@ fn test_agent_session_lifecycle() {
 /// Test symbol resolution across scopes
 #[test]
 fn test_symbol_resolution_workflow() {
-    use wooftype::core::symbol::{SymbolTable, Scope, SymbolId};
-    use wooftype::core::Entity;
+    use wootype::core::symbol::{SymbolTable, Scope, SymbolId};
+    use wootype::core::Entity;
     
     let symbols = SymbolTable::new();
     let entity = Entity::new(1, 1).unwrap();
@@ -70,8 +70,8 @@ fn test_symbol_resolution_workflow() {
 /// Test type validation workflow
 #[test]
 fn test_type_validation_workflow() {
-    use wooftype::core::{TypeUniverse, TypeId};
-    use wooftype::validate::{StreamingChecker, ValidationStream};
+    use wootype::core::{TypeUniverse, TypeId};
+    use wootype::validate::{StreamingChecker, ValidationStream};
     
     let universe = Arc::new(TypeUniverse::new());
     let _checker = StreamingChecker::new(universe.clone());
@@ -83,7 +83,7 @@ fn test_type_validation_workflow() {
 /// Test cache eviction behavior
 #[test]
 fn test_cache_eviction_workflow() {
-    use wooftype::query::cache::QueryCache;
+    use wootype::query::cache::QueryCache;
     
     let cache = QueryCache::<String, i32>::new(3); // Very small cache
     
@@ -107,7 +107,7 @@ fn test_cache_eviction_workflow() {
 /// Test error propagation
 #[test]
 fn test_error_propagation() {
-    use wooftype::validate::error::{ErrorCollection, SoftError, ErrorSeverity, ValidationError};
+    use wootype::validate::error::{ErrorCollection, SoftError, ErrorSeverity, ValidationError};
     
     let mut errors = ErrorCollection::new();
     
@@ -128,7 +128,7 @@ fn test_error_propagation() {
 /// Test type flags operations
 #[test]
 fn test_type_flags_comprehensive() {
-    use wooftype::core::types::TypeFlags;
+    use wootype::core::types::TypeFlags;
     
     let basic = TypeFlags::BASIC;
     let comparable = TypeFlags::COMPARABLE;
@@ -154,7 +154,7 @@ fn test_type_flags_comprehensive() {
 /// Test concurrent access patterns (basic)
 #[test]
 fn test_concurrent_symbol_access() {
-    use wooftype::core::symbol::SymbolTable;
+    use wootype::core::symbol::SymbolTable;
     use std::thread;
     
     let table = Arc::new(SymbolTable::new());
@@ -183,7 +183,7 @@ fn test_concurrent_symbol_access() {
 /// Test serialization round-trip
 #[test]
 fn test_serialization_roundtrip() {
-    use wooftype::core::types::{Type, TypeId, TypeKind, PrimitiveType};
+    use wootype::core::types::{Type, TypeId, TypeKind, PrimitiveType};
     
     let original = Type::new(TypeId(100), TypeKind::Primitive(PrimitiveType::Int));
     
@@ -201,7 +201,7 @@ fn test_serialization_roundtrip() {
 /// Test package import workflow (mock)
 #[test]
 fn test_package_import_workflow() {
-    use wooftype::core::{TypeUniverse, universe::PackageInfo};
+    use wootype::core::{TypeUniverse, universe::PackageInfo};
     
     let universe = Arc::new(TypeUniverse::new());
     
@@ -223,7 +223,7 @@ fn test_package_import_workflow() {
 /// Main test runner
 fn main() {
     println!("\n========================================");
-    println!("   Wooftype Integration Tests");
+    println!("   Wootype Integration Tests");
     println!("========================================\n");
     
     test_end_to_end_type_query();

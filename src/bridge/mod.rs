@@ -1,6 +1,6 @@
 //! IPC Bridge for Go compiler integration
 //! 
-//! Connects wooftype with the Go compiler via IPC/shared memory.
+//! Connects wootype with the Go compiler via IPC/shared memory.
 
 pub mod ipc;
 pub mod protocol;

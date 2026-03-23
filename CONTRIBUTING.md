@@ -1,4 +1,4 @@
-# Contributing to Wooftype
+# Contributing to Wootype
 
 ## Git 工作流程
 

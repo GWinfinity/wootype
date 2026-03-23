@@ -4,6 +4,10 @@
 
 pub mod server;
 pub mod service;
+pub mod grpc;
+pub mod websocket;
 
 pub use server::{ApiServer, ApiConfig};
 pub use service::TypeService;
+pub use grpc::GrpcTypeService;
+pub use websocket::WebSocketServer;
