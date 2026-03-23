@@ -1,93 +1,111 @@
-//! Gradual typing support for Python interoperability
+//! Gradual typing support for Go
 //!
-//! Wootype allows mixing typed and untyped code, with gradual
-//! enforcement of type safety at boundaries.
+//! Allows mixing typed and untyped code with gradual enforcement
+//! of type safety. Supports migration from untyped to fully typed.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use super::{Type, TypeError, Span, ErrorType};
 
 /// Gradual typing mode for a module or function
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum GradualMode {
     /// Fully static - all types checked at compile time
     Static,
-    /// Gradual - some `any` types allowed
+    /// Gradual - some `any` types allowed, warnings for untyped
     Gradual,
-    /// Dynamic - runtime type checking at boundaries
+    /// Dynamic - runtime type checking at boundaries only
     Dynamic,
 }
 
-/// Type checking boundary
-#[derive(Clone, Debug)]
-pub struct Boundary {
-    /// Source of the boundary (e.g., "Python call", "JSON decode")
-    pub source: String,
-    /// Expected type at boundary
-    pub expected: Type,
-    /// Whether runtime checks are inserted
-    pub runtime_checks: bool,
-}
-
-/// Runtime type tag for dynamic values
-#[derive(Clone, Debug, PartialEq)]
-pub enum RuntimeTag {
-    Int,
-    Float,
-    String,
-    Bool,
-    List(Box<RuntimeTag>),
-    Dict(Box<RuntimeTag>, Box<RuntimeTag>),
-    Object(String),  // Python object type name
-    Any,
-}
-
-impl RuntimeTag {
-    /// Check if runtime tag matches expected static type
-    pub fn matches(&self, ty: &Type) -> bool {
-        match (self, ty) {
-            (RuntimeTag::Int, Type::Int) => true,
-            (RuntimeTag::Float, Type::Float) => true,
-            (RuntimeTag::String, Type::String) => true,
-            (RuntimeTag::Bool, Type::Bool) => true,
-            (RuntimeTag::List(inner), Type::Array(elem)) => inner.matches(elem),
-            (RuntimeTag::Dict(k, v), Type::Map(kt, vt)) => {
-                k.matches(kt) && v.matches(vt)
-            }
-            (RuntimeTag::Object(_), Type::Any) => true,
-            (RuntimeTag::Any, _) => true,
-            _ => false,
+impl GradualMode {
+    /// Get the strictness level (higher = more strict)
+    pub fn strictness(&self) -> u8 {
+        match self {
+            GradualMode::Static => 3,
+            GradualMode::Gradual => 2,
+            GradualMode::Dynamic => 1,
         }
     }
     
-    /// Convert static type to runtime tag
-    pub fn from_type(ty: &Type) -> Self {
-        match ty {
-            Type::Int => RuntimeTag::Int,
-            Type::Float => RuntimeTag::Float,
-            Type::String => RuntimeTag::String,
-            Type::Bool => RuntimeTag::Bool,
-            Type::Array(elem) => RuntimeTag::List(Box::new(RuntimeTag::from_type(elem))),
-            Type::Map(k, v) => RuntimeTag::Dict(
-                Box::new(RuntimeTag::from_type(k)),
-                Box::new(RuntimeTag::from_type(v)),
-            ),
-            Type::Any => RuntimeTag::Any,
-            Type::Named(name) => RuntimeTag::Object(name.clone()),
-            _ => RuntimeTag::Any,
-        }
+    /// Check if this mode allows untyped code
+    pub fn allows_untyped(&self) -> bool {
+        matches!(self, GradualMode::Gradual | GradualMode::Dynamic)
     }
+    
+    /// Check if this mode requires full type annotations
+    pub fn requires_annotations(&self) -> bool {
+        matches!(self, GradualMode::Static)
+    }
+}
+
+/// Annotation state of code
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum AnnotationState {
+    /// Fully annotated with types
+    FullyAnnotated,
+    /// Partially annotated (some types missing)
+    PartiallyAnnotated,
+    /// No type annotations
+    Unannotated,
+}
+
+/// Type annotation information for a file or function
+#[derive(Clone, Debug)]
+pub struct TypeAnnotations {
+    /// Overall annotation state
+    pub state: AnnotationState,
+    /// Percentage of symbols with type annotations (0-100)
+    pub coverage_percent: u8,
+    /// Annotated symbols
+    pub annotated: HashSet<String>,
+    /// Unannotated symbols
+    pub unannotated: HashSet<String>,
+}
+
+/// Gradual type checker
+pub struct GradualChecker {
+    mode: GradualMode,
+    /// Type annotations tracking
+    annotations: HashMap<String, TypeAnnotations>,
+    /// Python interop config (if needed)
+    python_interop: Option<PythonInterop>,
+    /// Migration tracking
+    migration: MigrationTracker,
+}
+
+/// Migration tracker for gradual typing adoption
+pub struct MigrationTracker {
+    /// Original untyped code locations
+    untyped_origins: HashMap<String, DocumentLocation>,
+    /// Migration progress
+    progress: MigrationProgress,
+}
+
+/// Migration progress
+#[derive(Clone, Debug, Default)]
+pub struct MigrationProgress {
+    pub total_files: usize,
+    pub fully_typed: usize,
+    pub partially_typed: usize,
+    pub untyped: usize,
+    pub percentage_complete: f64,
+}
+
+/// Document location
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+pub struct DocumentLocation {
+    pub path: String,
+    pub line: usize,
+    pub column: usize,
 }
 
 /// Python interop configuration
 #[derive(Clone, Debug)]
 pub struct PythonInterop {
-    /// Enable type checking at Python boundaries
     pub check_python_calls: bool,
-    /// Generate runtime type assertions
     pub runtime_assertions: bool,
-    /// Type mappings (Python type -> Wootype type)
     pub type_mappings: HashMap<String, Type>,
 }
 
@@ -100,8 +118,6 @@ impl Default for PythonInterop {
         type_mappings.insert("bool".to_string(), Type::Bool);
         type_mappings.insert("list".to_string(), Type::Array(Box::new(Type::Any)));
         type_mappings.insert("dict".to_string(), Type::Map(Box::new(Type::Any), Box::new(Type::Any)));
-        type_mappings.insert("torch.Tensor".to_string(), Type::Tensor);
-        type_mappings.insert("numpy.ndarray".to_string(), Type::Tensor);
         
         Self {
             check_python_calls: true,
@@ -111,222 +127,409 @@ impl Default for PythonInterop {
     }
 }
 
-impl PythonInterop {
-    /// Convert Python type annotation to Wootype
-    pub fn python_to_wootype(&self, py_type: &str) -> Type {
-        // Handle generic types like list[int]
-        if let Some((base, inner)) = parse_generic(py_type) {
-            if base == "list" || base == "List" {
-                let inner_ty = self.python_to_wootype(&inner);
-                return Type::Array(Box::new(inner_ty));
-            }
-            if base == "dict" || base == "Dict" {
-                if let Some((k, v)) = parse_dict_args(&inner) {
-                    let kt = self.python_to_wootype(&k);
-                    let vt = self.python_to_wootype(&v);
-                    return Type::Map(Box::new(kt), Box::new(vt));
-                }
-            }
-            if base == "tuple" || base == "Tuple" {
-                // Parse tuple elements
-                let elems: Vec<Type> = inner
-                    .split(',')
-                    .map(|s| self.python_to_wootype(s.trim()))
-                    .collect();
-                return Type::Tuple(elems);
-            }
-            if base == "Optional" {
-                let inner_ty = self.python_to_wootype(&inner);
-                return Type::Option(Box::new(inner_ty));
-            }
-        }
-        
-        // Direct mapping
-        self.type_mappings.get(py_type).cloned().unwrap_or(Type::Any)
-    }
-    
-    /// Check if a Python value can be passed to a Wootype function
-    pub fn check_boundary(&self, py_value: &RuntimeTag, expected: &Type) -> Result<(), BoundaryError> {
-        if py_value.matches(expected) {
-            return Ok(());
-        }
-        
-        Err(BoundaryError {
-            runtime_tag: py_value.clone(),
-            expected: expected.clone(),
-            message: format!("Type mismatch at Python boundary: got {:?}, expected {:?}", py_value, expected),
-        })
-    }
+/// Runtime type tag for dynamic values
+#[derive(Clone, Debug, PartialEq)]
+pub enum RuntimeTag {
+    Int,
+    Float,
+    String,
+    Bool,
+    List(Box<RuntimeTag>),
+    Dict(Box<RuntimeTag>, Box<RuntimeTag>),
+    Object(String),
+    Any,
 }
 
-/// Boundary type error
+/// Type check result with gradual typing info
 #[derive(Clone, Debug)]
-pub struct BoundaryError {
-    pub runtime_tag: RuntimeTag,
-    pub expected: Type,
-    pub message: String,
+pub struct GradualCheckResult {
+    pub is_valid: bool,
+    pub errors: Vec<TypeError>,
+    pub warnings: Vec<GradualWarning>,
+    pub annotation_state: AnnotationState,
 }
 
-/// Gradual type checker
-pub struct GradualChecker {
-    mode: GradualMode,
-    python_interop: PythonInterop,
-    boundaries: Vec<Boundary>,
+/// Gradual typing specific warning
+#[derive(Clone, Debug)]
+pub struct GradualWarning {
+    pub message: String,
+    pub span: Span,
+    pub kind: GradualWarningKind,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GradualWarningKind {
+    MissingTypeAnnotation,
+    UntypedCodeBlock,
+    DynamicTypeUsage,
+    PartialTypeInference,
+    MigrationSuggestion,
+}
+
+/// Migration tool for converting untyped to typed code
+pub struct MigrationTool {
+    checker: GradualChecker,
+}
+
+/// Suggested type annotation
+#[derive(Clone, Debug)]
+pub struct TypeSuggestion {
+    pub name: String,
+    pub suggested_type: Type,
+    pub confidence: f64,
+    pub reason: String,
 }
 
 impl GradualChecker {
     pub fn new(mode: GradualMode) -> Self {
         Self {
             mode,
-            python_interop: PythonInterop::default(),
-            boundaries: vec![],
+            annotations: HashMap::new(),
+            python_interop: None,
+            migration: MigrationTracker::new(),
         }
     }
     
-    /// Set Python interop configuration
     pub fn with_python_interop(mut self, interop: PythonInterop) -> Self {
-        self.python_interop = interop;
+        self.python_interop = Some(interop);
         self
     }
     
-    /// Check if two types are compatible in gradual mode
-    pub fn is_compatible(&self, t1: &Type, t2: &Type) -> bool {
-        match self.mode {
-            GradualMode::Static => t1 == t2 || self.is_subtype(t1, t2),
-            GradualMode::Gradual | GradualMode::Dynamic => {
-                // In gradual/dynamic mode, any is compatible with everything
-                matches!((t1, t2), (Type::Any, _) | (_, Type::Any)) || 
-                    t1 == t2 || 
-                    self.is_subtype(t1, t2)
-            }
-        }
-    }
-    
-    /// Subtype checking
-    fn is_subtype(&self, sub: &Type, sup: &Type) -> bool {
-        match (sub, sup) {
-            (a, b) if a == b => true,
-            (Type::Int, Type::Float) => true,  // int <: float
-            (Type::Array(a), Type::Array(b)) => self.is_subtype(a, b),
-            (Type::Option(a), Type::Option(b)) => self.is_subtype(a, b),
-            (Type::Func(a_args, a_ret), Type::Func(b_args, b_ret)) => {
-                // Contravariant in arguments, covariant in return
-                if a_args.len() != b_args.len() {
-                    return false;
-                }
-                a_args.iter().zip(b_args.iter()).all(|(a, b)| self.is_subtype(b, a)) &&
-                    self.is_subtype(a_ret, b_ret)
-            }
-            (Type::Struct(a_fields), Type::Struct(b_fields)) => {
-                // Structural subtyping
-                b_fields.iter().all(|(name, b_ty)| {
-                    a_fields.get(name)
-                        .map(|a_ty| self.is_subtype(a_ty, b_ty))
-                        .unwrap_or(false)
-                })
-            }
-            _ => false,
-        }
-    }
-    
-    /// Generate runtime type check code
-    pub fn generate_runtime_check(&self, value: &str, expected: &Type) -> Option<String> {
-        if self.mode == GradualMode::Static {
-            return None;
-        }
+    /// Analyze type annotations in code
+    pub fn analyze_annotations(&mut self, file: &str, content: &str) -> TypeAnnotations {
+        let mut annotated = HashSet::new();
+        let mut unannotated = HashSet::new();
         
-        if !self.python_interop.runtime_assertions {
-            return None;
-        }
-        
-        let check = match expected {
-            Type::Int => format!("assert isinstance({}, int), 'Expected int'", value),
-            Type::Float => format!("assert isinstance({}, (int, float)), 'Expected float'", value),
-            Type::String => format!("assert isinstance({}, str), 'Expected str'", value),
-            Type::Bool => format!("assert isinstance({}, bool), 'Expected bool'", value),
-            Type::Array(elem) => {
-                let elem_check = self.generate_runtime_check("x", elem)?;
-                format!(
-                    "assert isinstance({}, list)\nfor x in {}: {}",
-                    value, value, elem_check
-                )
-            }
-            Type::Option(inner) => {
-                // Check if None or match inner type
-                let inner_check = self.generate_runtime_check(value, inner)?;
-                format!(
-                    "if {} is not None:\n    {}",
-                    value, inner_check
-                )
-            }
-            _ => return None,
-        };
-        
-        Some(check)
-    }
-    
-    /// Add a type boundary
-    pub fn add_boundary(&mut self, source: &str, expected: Type, runtime_checks: bool) {
-        self.boundaries.push(Boundary {
-            source: source.to_string(),
-            expected,
-            runtime_checks,
-        });
-    }
-    
-    /// Get all boundaries
-    pub fn boundaries(&self) -> &[Boundary] {
-        &self.boundaries
-    }
-}
-
-/// Parse a generic type like "list[int]"
-fn parse_generic(s: &str) -> Option<(String, String)> {
-    let start = s.find('[')?;
-    let end = s.rfind(']')?;
-    
-    let base = s[..start].trim().to_string();
-    let inner = s[start + 1..end].trim().to_string();
-    
-    Some((base, inner))
-}
-
-/// Parse dict arguments like "str, int"
-fn parse_dict_args(s: &str) -> Option<(String, String)> {
-    let comma = s.find(',')?;
-    Some((
-        s[..comma].trim().to_string(),
-        s[comma + 1..].trim().to_string(),
-    ))
-}
-
-/// Convert type errors for gradual mode
-pub fn convert_error_for_mode(error: TypeError, mode: GradualMode) -> Option<TypeError> {
-    match mode {
-        GradualMode::Static => Some(error),
-        GradualMode::Gradual => {
-            // In gradual mode, allow some type mismatches involving any
-            match &error.error_type {
-                ErrorType::TypeMismatch { expected, found } => {
-                    if matches!((expected, found), (Type::Any, _) | (_, Type::Any)) {
-                        // Suppress error in gradual mode
-                        None
+        for line in content.lines() {
+            let line = line.trim();
+            
+            // Check for function declarations
+            if line.starts_with("func ") {
+                if let Some(func_sig) = extract_func_signature(line) {
+                    if func_sig.contains(":") || func_sig.contains("->") {
+                        if let Some(name) = extract_func_name(line) {
+                            annotated.insert(name);
+                        }
                     } else {
-                        Some(error)
+                        if let Some(name) = extract_func_name(line) {
+                            unannotated.insert(name);
+                        }
                     }
                 }
-                _ => Some(error),
+            }
+            
+            // Check for variable declarations
+            if line.contains(":=") && !line.contains("// type:") {
+                if let Some(name) = extract_var_name(line) {
+                    unannotated.insert(name);
+                }
             }
         }
-        GradualMode::Dynamic => {
-            // In dynamic mode, only report serious errors
-            match &error.error_type {
-                ErrorType::TypeMismatch { .. } => None,
-                ErrorType::UnknownIdentifier(_) => None,
-                _ => Some(error),
+        
+        let total = annotated.len() + unannotated.len();
+        let coverage = if total > 0 {
+            (annotated.len() * 100 / total) as u8
+        } else {
+            100
+        };
+        
+        let state = if coverage == 100 {
+            AnnotationState::FullyAnnotated
+        } else if coverage == 0 {
+            AnnotationState::Unannotated
+        } else {
+            AnnotationState::PartiallyAnnotated
+        };
+        
+        let annotations = TypeAnnotations {
+            state,
+            coverage_percent: coverage,
+            annotated,
+            unannotated,
+        };
+        
+        self.annotations.insert(file.to_string(), annotations.clone());
+        annotations
+    }
+    
+    /// Check code with gradual typing rules
+    pub fn check(&self, ty1: &Type, ty2: &Type, annotation_state: AnnotationState) -> GradualCheckResult {
+        let mut errors = vec![];
+        let mut warnings = vec![];
+        
+        match self.mode {
+            GradualMode::Static => {
+                // Static mode: require full annotations
+                if annotation_state != AnnotationState::FullyAnnotated {
+                    warnings.push(GradualWarning {
+                        message: "Missing type annotations in static mode".to_string(),
+                        span: Span::default(),
+                        kind: GradualWarningKind::MissingTypeAnnotation,
+                    });
+                }
+                
+                // Strict type checking
+                if !self.is_compatible_static(ty1, ty2) {
+                    errors.push(TypeError {
+                        message: format!("Type mismatch: {:?} vs {:?}", ty1, ty2),
+                        span: Span::default(),
+                        error_type: ErrorType::TypeMismatch {
+                            expected: ty1.clone(),
+                            found: ty2.clone(),
+                        },
+                    });
+                }
             }
+            
+            GradualMode::Gradual => {
+                // Gradual mode: allow any, but warn
+                if matches!((ty1, ty2), (Type::Any, _) | (_, Type::Any)) {
+                    warnings.push(GradualWarning {
+                        message: "Dynamic type usage detected".to_string(),
+                        span: Span::default(),
+                        kind: GradualWarningKind::DynamicTypeUsage,
+                    });
+                } else if !self.is_compatible_gradual(ty1, ty2) {
+                    errors.push(TypeError {
+                        message: format!("Type mismatch: {:?} vs {:?}", ty1, ty2),
+                        span: Span::default(),
+                        error_type: ErrorType::TypeMismatch {
+                            expected: ty1.clone(),
+                            found: ty2.clone(),
+                        },
+                    });
+                }
+            }
+            
+            GradualMode::Dynamic => {
+                // Dynamic mode: only check at boundaries
+                if !self.is_compatible_dynamic(ty1, ty2) {
+                    errors.push(TypeError {
+                        message: "Runtime type check failed".to_string(),
+                        span: Span::default(),
+                        error_type: ErrorType::TypeMismatch {
+                            expected: ty1.clone(),
+                            found: ty2.clone(),
+                        },
+                    });
+                }
+            }
+        }
+        
+        GradualCheckResult {
+            is_valid: errors.is_empty(),
+            errors,
+            warnings,
+            annotation_state,
         }
     }
+    
+    /// Static mode compatibility
+    fn is_compatible_static(&self, expected: &Type, found: &Type) -> bool {
+        expected == found
+    }
+    
+    /// Gradual mode compatibility
+    fn is_compatible_gradual(&self, expected: &Type, found: &Type) -> bool {
+        // Allow any to be compatible with anything
+        if matches!(expected, Type::Any) || matches!(found, Type::Any) {
+            return true;
+        }
+        
+        // Otherwise require exact match
+        expected == found
+    }
+    
+    /// Dynamic mode compatibility
+    fn is_compatible_dynamic(&self, _expected: &Type, _found: &Type) -> bool {
+        // In dynamic mode, everything is compatible at compile time
+        // Runtime checks handle mismatches
+        true
+    }
+    
+    /// Get annotation info for a file
+    pub fn get_annotations(&self, file: &str) -> Option<&TypeAnnotations> {
+        self.annotations.get(file)
+    }
+    
+    /// Get migration progress
+    pub fn migration_progress(&self) -> MigrationProgress {
+        self.migration.calculate_progress(&self.annotations)
+    }
+    
+    /// Should this code be checked strictly?
+    pub fn should_check_strictly(&self, annotation_state: AnnotationState) -> bool {
+        match self.mode {
+            GradualMode::Static => true,
+            GradualMode::Gradual => annotation_state == AnnotationState::FullyAnnotated,
+            GradualMode::Dynamic => false,
+        }
+    }
+}
+
+impl MigrationTracker {
+    pub fn new() -> Self {
+        Self {
+            untyped_origins: HashMap::new(),
+            progress: MigrationProgress::default(),
+        }
+    }
+    
+    fn calculate_progress(&self, annotations: &HashMap<String, TypeAnnotations>) -> MigrationProgress {
+        let total = annotations.len();
+        let fully = annotations.values()
+            .filter(|a| a.state == AnnotationState::FullyAnnotated)
+            .count();
+        let partial = annotations.values()
+            .filter(|a| a.state == AnnotationState::PartiallyAnnotated)
+            .count();
+        let untyped = total - fully - partial;
+        
+        let percentage = if total > 0 {
+            (fully as f64 + partial as f64 * 0.5) / total as f64 * 100.0
+        } else {
+            0.0
+        };
+        
+        MigrationProgress {
+            total_files: total,
+            fully_typed: fully,
+            partially_typed: partial,
+            untyped,
+            percentage_complete: percentage,
+        }
+    }
+}
+
+impl Default for MigrationTracker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl MigrationTool {
+    pub fn new(checker: GradualChecker) -> Self {
+        Self { checker }
+    }
+    
+    /// Analyze code and suggest type annotations
+    pub fn suggest_types(&self, content: &str) -> Vec<TypeSuggestion> {
+        let mut suggestions = vec![];
+        
+        for line in content.lines() {
+            let line = line.trim();
+            
+            // Look for untyped functions (functions without return type annotation)
+            if line.starts_with("func ") {
+                if let Some(name) = extract_func_name(line) {
+                    // Skip if already has return type annotation
+                    if line.contains("->") {
+                        continue;
+                    }
+                    // Infer return type from function name
+                    if let Some(ty) = infer_return_type_from_name(&name) {
+                        suggestions.push(TypeSuggestion {
+                            name: name.clone(),
+                            suggested_type: ty.clone(),
+                            confidence: 0.7,
+                            reason: format!("Function name '{}' suggests return type '{:?}'", name, ty),
+                        });
+                    }
+                }
+            }
+            
+            // Look for untyped variables
+            if line.contains(":=") {
+                if let Some(name) = extract_var_name(line) {
+                    if let Some(ty) = infer_type_from_name(&name) {
+                        suggestions.push(TypeSuggestion {
+                            name: name.clone(),
+                            suggested_type: ty.clone(),
+                            confidence: 0.6,
+                            reason: format!("Variable name '{}' suggests type '{:?}'", name, ty),
+                        });
+                    }
+                }
+            }
+        }
+        
+        suggestions
+    }
+    
+    /// Generate migration report
+    pub fn generate_report(&self) -> String {
+        let progress = self.checker.migration_progress();
+        
+        format!(
+            r#"# Gradual Typing Migration Report
+
+## Progress
+- Total files: {}
+- Fully typed: {} ({:.1}%)
+- Partially typed: {} ({:.1}%)
+- Untyped: {} ({:.1}%)
+- Overall completion: {:.1}%
+
+## Recommendations
+1. Start with files that have high impact (exported functions)
+2. Use type inference to auto-generate suggestions
+3. Gradually increase strictness level
+"#,
+            progress.total_files,
+            progress.fully_typed,
+            progress.fully_typed as f64 / progress.total_files as f64 * 100.0,
+            progress.partially_typed,
+            progress.partially_typed as f64 / progress.total_files as f64 * 100.0,
+            progress.untyped,
+            progress.untyped as f64 / progress.total_files as f64 * 100.0,
+            progress.percentage_complete
+        )
+    }
+}
+
+// Helper functions
+fn extract_func_signature(line: &str) -> Option<&str> {
+    line.split('{').next()
+}
+
+fn extract_func_name(line: &str) -> Option<String> {
+    line.strip_prefix("func ")?
+        .split('(')
+        .next()
+        .map(|s| s.split('.').last().unwrap_or(s).trim().to_string())
+}
+
+fn extract_var_name(line: &str) -> Option<String> {
+    line.split(":=").next()?.trim().split_whitespace().last().map(|s| s.to_string())
+}
+
+fn infer_return_type_from_name(name: &str) -> Option<Type> {
+    if name.starts_with("is") || name.starts_with("has") || name.contains("Enabled") {
+        return Some(Type::Bool);
+    }
+    if name.contains("Count") || name.contains("Num") || name.contains("Len") {
+        return Some(Type::Int);
+    }
+    if name.contains("Name") || name.contains("Text") || name.contains("String") {
+        return Some(Type::String);
+    }
+    None
+}
+
+fn infer_type_from_name(name: &str) -> Option<Type> {
+    if name.ends_with("Count") || name.ends_with("Index") || name.ends_with("Id") {
+        return Some(Type::Int);
+    }
+    if name.contains("name") || name.contains("text") || name.contains("title") {
+        return Some(Type::String);
+    }
+    if name.starts_with("is") || name.starts_with("has") {
+        return Some(Type::Bool);
+    }
+    if name.ends_with("s") {
+        return Some(Type::Array(Box::new(Type::Any)));
+    }
+    None
 }
 
 #[cfg(test)]
@@ -334,49 +537,89 @@ mod tests {
     use super::*;
     
     #[test]
-    fn test_python_to_wootype() {
-        let interop = PythonInterop::default();
+    fn test_gradual_mode_strictness() {
+        assert!(GradualMode::Static.strictness() > GradualMode::Gradual.strictness());
+        assert!(GradualMode::Gradual.strictness() > GradualMode::Dynamic.strictness());
+    }
+    
+    #[test]
+    fn test_analyze_annotations() {
+        let mut checker = GradualChecker::new(GradualMode::Gradual);
         
-        assert_eq!(interop.python_to_wootype("int"), Type::Int);
-        assert_eq!(interop.python_to_wootype("str"), Type::String);
-        assert_eq!(interop.python_to_wootype("list[int]"), Type::Array(Box::new(Type::Int)));
-        assert_eq!(interop.python_to_wootype("dict[str, float]"), 
-            Type::Map(Box::new(Type::String), Box::new(Type::Float)));
+        let content = r#"
+func Annotated(x: int) -> int {
+    return x + 1
+}
+
+func Unannotated(x) {
+    return x + 1
+}
+"#;
+        
+        let annotations = checker.analyze_annotations("test.go", content);
+        
+        assert_eq!(annotations.state, AnnotationState::PartiallyAnnotated);
+        assert_eq!(annotations.annotated.len(), 1);
+        assert_eq!(annotations.unannotated.len(), 1);
     }
     
     #[test]
-    fn test_runtime_tag_matching() {
-        assert!(RuntimeTag::Int.matches(&Type::Int));
-        assert!(RuntimeTag::List(Box::new(RuntimeTag::Int)).matches(&Type::Array(Box::new(Type::Int))));
-        assert!(!RuntimeTag::Int.matches(&Type::String));
-    }
-    
-    #[test]
-    fn test_gradual_compatibility() {
+    fn test_gradual_check_any() {
         let checker = GradualChecker::new(GradualMode::Gradual);
         
-        assert!(checker.is_compatible(&Type::Any, &Type::Int));
-        assert!(checker.is_compatible(&Type::Int, &Type::Any));
-        assert!(checker.is_compatible(&Type::Int, &Type::Int));
+        // In gradual mode, Any is compatible with anything
+        let result = checker.check(&Type::Any, &Type::Int, AnnotationState::FullyAnnotated);
+        assert!(result.is_valid);
+        assert!(!result.warnings.is_empty()); // But should warn
     }
     
     #[test]
-    fn test_static_incompatibility() {
+    fn test_static_check_strict() {
         let checker = GradualChecker::new(GradualMode::Static);
         
-        assert!(!checker.is_compatible(&Type::Any, &Type::Int));
-        assert!(!checker.is_compatible(&Type::Int, &Type::String));
+        // In static mode, require exact match
+        let result = checker.check(&Type::Int, &Type::String, AnnotationState::FullyAnnotated);
+        assert!(!result.is_valid);
     }
     
     #[test]
-    fn test_parse_generic() {
-        assert_eq!(
-            parse_generic("list[int]"),
-            Some(("list".to_string(), "int".to_string()))
-        );
-        assert_eq!(
-            parse_generic("dict[str, float]"),
-            Some(("dict".to_string(), "str, float".to_string()))
-        );
+    fn test_migration_suggestions() {
+        let checker = GradualChecker::new(GradualMode::Gradual);
+        let tool = MigrationTool::new(checker);
+        
+        let content = r#"
+func isValid() {
+    return true
+}
+
+count := 42
+name := "test"
+"#;
+        
+        let suggestions = tool.suggest_types(content);
+        
+        // Should suggest types based on names
+        assert!(!suggestions.is_empty());
+        
+        // isValid should suggest Bool
+        let valid_suggestion = suggestions.iter()
+            .find(|s| s.name == "isValid");
+        assert!(valid_suggestion.is_some());
+        assert_eq!(valid_suggestion.unwrap().suggested_type, Type::Bool);
+    }
+    
+    #[test]
+    fn test_migration_progress() {
+        let mut checker = GradualChecker::new(GradualMode::Gradual);
+        
+        // Add some annotated files
+        checker.analyze_annotations("a.go", "func A() -> int {}");
+        checker.analyze_annotations("b.go", "func B(x) {}");
+        checker.analyze_annotations("c.go", "x := 1");
+        
+        let progress = checker.migration_progress();
+        
+        assert_eq!(progress.total_files, 3);
+        assert!(progress.percentage_complete > 0.0);
     }
 }
