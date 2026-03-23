@@ -60,7 +60,9 @@ clap = { version = "4.4", features = ["derive"] }
 tokio-test = "0.4"
 criterion = { version = "0.5", features = ["async_tokio"] }
 
-
+[[bench]]
+name = "query_benchmark"
+harness = false
 
 [profile.release]
 opt-level = 3

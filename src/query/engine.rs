@@ -360,4 +360,34 @@ mod tests {
         // Query may return empty in simplified implementation
         // Test passes if no panic occurs
     }
+    
+    #[test]
+    fn test_query_engine_creation() {
+        let universe = setup_universe();
+        let engine = QueryEngine::new(universe);
+        // Should not panic
+        let _ = engine.universe.type_count();
+    }
+    
+    #[test]
+    fn test_cache_clear() {
+        let universe = setup_universe();
+        let engine = QueryEngine::new(universe);
+        
+        engine.clear_cache();
+        // Should not panic
+    }
+    
+    #[test]
+    fn test_type_constraint_enum() {
+        let universe = setup_universe();
+        let engine = QueryEngine::new(universe);
+        
+        // Test that constraint enum works
+        let _constraint = TypeConstraint::Comparable;
+        let _constraint2 = TypeConstraint::AssignableTo(TypeId(1));
+        
+        // Query may not return results in simplified impl
+        let _results = engine.find_by_constraint(TypeConstraint::Comparable);
+    }
 }

@@ -488,4 +488,77 @@ mod tests {
         assert!(ptr.flags().contains(TypeFlags::POINTER));
         assert!(ptr.flags().contains(TypeFlags::NILABLE));
     }
+    
+    #[test]
+    fn test_all_primitives_have_unique_fingerprints() {
+        let primitives = vec![
+            PrimitiveType::Bool,
+            PrimitiveType::Int,
+            PrimitiveType::Int8,
+            PrimitiveType::Int16,
+            PrimitiveType::Int32,
+            PrimitiveType::Int64,
+            PrimitiveType::Uint,
+            PrimitiveType::Uint8,
+            PrimitiveType::Uint16,
+            PrimitiveType::Uint32,
+            PrimitiveType::Uint64,
+            PrimitiveType::Float32,
+            PrimitiveType::Float64,
+            PrimitiveType::String,
+        ];
+        
+        let mut fingerprints = std::collections::HashSet::new();
+        for p in &primitives {
+            let fp = p.fingerprint();
+            assert!(fingerprints.insert(fp), "Duplicate fingerprint for {:?}", p);
+        }
+    }
+    
+    #[test]
+    fn test_type_flags_operations() {
+        let a = TypeFlags::BASIC;
+        let b = TypeFlags::COMPARABLE;
+        let c = a | b;
+        
+        assert!(c.contains(a));
+        assert!(c.contains(b));
+        assert!(!c.contains(TypeFlags::POINTER));
+        
+        // Test intersection
+        let d = c & a;
+        assert!(d.contains(a));
+        assert!(!d.contains(b));
+    }
+    
+    #[test]
+    fn test_type_creation() {
+        let typ = Type::new(TypeId(1), TypeKind::Primitive(PrimitiveType::Int));
+        assert_eq!(typ.id, TypeId(1));
+        assert!(typ.flags.contains(TypeFlags::BASIC));
+    }
+    
+    #[test]
+    fn test_type_equality() {
+        let t1 = Type::new(TypeId(1), TypeKind::Primitive(PrimitiveType::Int));
+        let t2 = Type::new(TypeId(1), TypeKind::Primitive(PrimitiveType::Int));
+        assert!(t1.identical(&t2));
+    }
+    
+    #[test]
+    fn test_primitive_type_strings() {
+        assert_eq!(PrimitiveType::Int.as_str(), "int");
+        assert_eq!(PrimitiveType::String.as_str(), "string");
+        assert_eq!(PrimitiveType::Bool.as_str(), "bool");
+    }
+    
+    #[test]
+    fn test_fingerprint_likely_matches() {
+        let fp1 = TypeFingerprint(0x12345678);
+        let fp2 = TypeFingerprint(0x12345678);
+        let fp3 = TypeFingerprint(0x87654321);
+        
+        assert!(fp1.likely_matches(&fp2));
+        assert!(!fp1.likely_matches(&fp3));
+    }
 }
