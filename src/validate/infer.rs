@@ -47,7 +47,7 @@ impl LookaheadContext {
     
     /// Update with new binding
     pub fn with_binding(mut self, name: impl Into<String>, typ: TypeId) -> Self {
-        self.scope_bindings = self.scope_bindings.insert(name.into(), typ);
+        self.scope_bindings = self.scope_bindings.update(name.into(), typ);
         self
     }
     
@@ -287,7 +287,7 @@ impl TypeInference {
     
     /// Bind variable name to type
     pub fn bind(&mut self, name: impl Into<String>, typ: TypeId) {
-        self.bindings = self.bindings.insert(name.into(), typ);
+        self.bindings = self.bindings.update(name.into(), typ);
     }
 }
 
@@ -295,6 +295,7 @@ impl TypeInference {
 mod tests {
     use super::*;
     use crate::core::TypeUniverse;
+    use std::sync::Arc;
 
     fn setup_inference() -> TypeInference {
         let universe = Arc::new(TypeUniverse::new());

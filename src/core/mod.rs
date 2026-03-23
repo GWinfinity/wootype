@@ -8,6 +8,7 @@ pub mod storage;
 pub mod types;
 pub mod symbol;
 pub mod universe;
+pub mod serde_impl;
 
 pub use entity::{Entity, EntityId, Generation};
 pub use storage::ArchetypeStorage;

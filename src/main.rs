@@ -23,7 +23,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tracing::{info, error};
 
-use wooftype::core::TypeUniverse;
+use wooftype::core::{TypeUniverse, TypeId};
 use wooftype::agent::{AgentCoordinator, AgentSession, SessionConfig, AgentType};
 use wooftype::bridge::{IpcBridge, BridgeConfig};
 use wooftype::api::{ApiServer, ApiConfig};

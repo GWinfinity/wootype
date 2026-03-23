@@ -152,6 +152,33 @@ impl TypeFlags {
     }
 }
 
+impl std::ops::BitOr for TypeFlags {
+    type Output = Self;
+    fn bitor(self, rhs: Self) -> Self {
+        Self(self.0 | rhs.0)
+    }
+}
+
+impl std::ops::BitOrAssign for TypeFlags {
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.0 |= rhs.0;
+    }
+}
+
+impl std::ops::BitAnd for TypeFlags {
+    type Output = Self;
+    fn bitand(self, rhs: Self) -> Self {
+        Self(self.0 & rhs.0)
+    }
+}
+
+impl std::ops::Not for TypeFlags {
+    type Output = Self;
+    fn not(self) -> Self {
+        Self(!self.0)
+    }
+}
+
 /// The kind of a Go type
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum TypeKind {
@@ -160,7 +187,9 @@ pub enum TypeKind {
     
     /// Named type (type declaration)
     Named {
+        #[serde(with = "arc_str")]
         pkg_path: Arc<str>,
+        #[serde(with = "arc_str")]
         name: Arc<str>,
         underlying: TypeId,
     },
@@ -214,6 +243,7 @@ pub enum TypeKind {
     
     /// Type parameter (generic)
     TypeParam {
+        #[serde(with = "arc_str")]
         name: Arc<str>,
         constraint: TypeId,
     },
@@ -299,6 +329,7 @@ pub enum ChanDir {
 /// Function parameter
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct FuncParam {
+    #[serde(with = "arc_str_opt")]
     pub name: Option<Arc<str>>,
     pub typ: TypeId,
 }
@@ -306,17 +337,63 @@ pub struct FuncParam {
 /// Struct field
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct StructField {
+    #[serde(with = "arc_str")]
     pub name: Arc<str>,
     pub typ: TypeId,
     pub embedded: bool,
+    #[serde(with = "arc_str_opt")]
     pub tag: Option<Arc<str>>,
 }
 
 /// Interface method
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct InterfaceMethod {
+    #[serde(with = "arc_str")]
     pub name: Arc<str>,
     pub sig: TypeId,
+}
+
+mod arc_str {
+    use serde::{self, Deserialize, Deserializer, Serializer};
+    use std::sync::Arc;
+    
+    pub fn serialize<S>(arc: &Arc<str>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(arc)
+    }
+    
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Arc<str>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s: String = Deserialize::deserialize(deserializer)?;
+        Ok(Arc::from(s))
+    }
+}
+
+mod arc_str_opt {
+    use serde::{self, Deserialize, Deserializer, Serializer};
+    use std::sync::Arc;
+    
+    pub fn serialize<S>(opt: &Option<Arc<str>>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match opt {
+            Some(arc) => serializer.serialize_some(arc.as_ref()),
+            None => serializer.serialize_none(),
+        }
+    }
+    
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<Arc<str>>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let opt: Option<String> = Deserialize::deserialize(deserializer)?;
+        Ok(opt.map(|s| Arc::from(s)))
+    }
 }
 
 /// A complete type representation

@@ -31,8 +31,53 @@ impl Default for SymbolId {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Symbol {
     pub id: SymbolId,
+    #[serde(with = "arc_str")]
     pub name: Arc<str>,
+    #[serde(with = "arc_str_opt")]
     pub pkg_path: Option<Arc<str>>,
+}
+
+mod arc_str {
+    use serde::{self, Deserialize, Deserializer, Serializer};
+    use std::sync::Arc;
+    
+    pub fn serialize<S>(arc: &Arc<str>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(arc)
+    }
+    
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Arc<str>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s: String = Deserialize::deserialize(deserializer)?;
+        Ok(Arc::from(s))
+    }
+}
+
+mod arc_str_opt {
+    use serde::{self, Deserialize, Deserializer, Serializer};
+    use std::sync::Arc;
+    
+    pub fn serialize<S>(opt: &Option<Arc<str>>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match opt {
+            Some(arc) => serializer.serialize_some(arc.as_ref()),
+            None => serializer.serialize_none(),
+        }
+    }
+    
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<Arc<str>>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let opt: Option<String> = Deserialize::deserialize(deserializer)?;
+        Ok(opt.map(|s| Arc::from(s)))
+    }
 }
 
 /// Thread-safe symbol table with string interning
@@ -121,7 +166,7 @@ impl SymbolTable {
 }
 
 /// Scope-aware symbol resolution
-#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Default)]
 pub struct Scope {
     parent: Option<Box<Scope>>,
     symbols: im::HashMap<SymbolId, crate::core::Entity>,

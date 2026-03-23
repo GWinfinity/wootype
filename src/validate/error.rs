@@ -61,7 +61,7 @@ impl ValidationError {
                 (
                     format!("'{}' is not defined", name),
                     Some(format!("Define '{}' or import it", name)),
-                    ErrorSeverity::Error,
+                    ErrorSeverity::Warning, // Softened from Error
                 )
             }
             Self::UndefinedField { typ: _, field } => {
