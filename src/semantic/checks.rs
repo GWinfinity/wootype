@@ -115,22 +115,14 @@ impl CheckEngine {
             method_count: 1,
         });
 
-        // 模拟：发现问题
-        if interface_name == "Reader" {
-            issues.push(InterfaceIssue {
-                severity: IssueSeverity::Error,
-                message: "方法签名不匹配: 期望 'Read(p []byte) (int, error)', 得到 'Read(p []byte) (n int, err error)'".to_string(),
-                implementation: Some("FileReader".to_string()),
-                location: DocumentLocation {
-                    path: PathBuf::from("module_b/impl.go"),
-                    range: Range::new(
-                        Position::new(6, 0),
-                        Position::new(6, 50),
-                    ),
-                },
-                fix_suggestion: Some("统一使用命名返回值或无名返回值".to_string()),
-            });
-        }
+        // 注：返回值命名在 Go 中是可选的，不影响接口兼容性
+        // (int, error) 和 (n int, err error) 在类型上是完全等价的
+        // 因此这里不应该报告错误
+        
+        // 实际实现会检查真正的不兼容问题，例如：
+        // - 参数类型不匹配
+        // - 返回值数量不匹配  
+        // - 返回值类型不匹配（不考虑命名）
 
         let is_consistent = issues.is_empty();
         
@@ -145,7 +137,13 @@ impl CheckEngine {
 
     /// 检查方法签名一致性
     ///
-    /// 比较两个方法的签名是否兼容
+    /// 比较两个方法的签名是否兼容。
+    /// 
+    /// # 注意
+    /// 
+    /// 返回值命名不影响兼容性：
+    /// - `(int, error)` 和 `(n int, err error)` 是兼容的
+    /// - 只比较类型，不比较参数/返回值名称
     pub fn check_method_signature(
         &self,
         expected: &MethodSignature,
@@ -541,5 +539,50 @@ mod tests {
         
         let cycles = engine.detect_import_cycles(&packages);
         assert!(!cycles.is_empty());
+    }
+
+    #[test]
+    fn test_return_value_naming_compatibility() {
+        // 验证返回值命名不影响兼容性
+        let engine = CheckEngine::new();
+        
+        // 方法1: 无名返回值
+        let expected = MethodSignature {
+            name: "Read".to_string(),
+            params: vec![("p".to_string(), Type::Array(Box::new(Type::Int)))],
+            return_type: Type::Tuple(vec![Type::Int, Type::Any]), // (int, error)
+            is_variadic: false,
+        };
+        
+        // 方法2: 命名返回值 - 应该兼容
+        let actual = MethodSignature {
+            name: "Read".to_string(),
+            params: vec![("p".to_string(), Type::Array(Box::new(Type::Int)))],
+            return_type: Type::Tuple(vec![Type::Int, Type::Any]), // (n int, err error) - 类型相同
+            is_variadic: false,
+        };
+        
+        let result = engine.check_method_signature(&expected, &actual);
+        
+        // 类型相同，应该兼容（不检查返回值命名）
+        assert!(result.is_compatible, "返回值命名不应影响兼容性");
+        assert!(result.issues.is_empty(), "不应报告返回值命名问题");
+    }
+
+    #[test]
+    fn test_interface_check_no_false_positive_on_naming() {
+        let engine = CheckEngine::new();
+        let result = engine.check_interface_implementations(
+            Path::new("module_a/types.go"),
+            "Reader",
+        );
+        
+        // 不应该因为返回值命名而报告错误
+        let naming_issues: Vec<_> = result.issues.iter()
+            .filter(|i| i.message.contains("命名"))
+            .collect();
+        
+        assert!(naming_issues.is_empty(), 
+            "返回值命名差异不应被报告为问题，但发现: {:?}", naming_issues);
     }
 }
