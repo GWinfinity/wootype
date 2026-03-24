@@ -5,8 +5,8 @@
 //! - Lock-free concurrent indexing
 //! - Speculative transaction support for AI Agents
 
-use super::entity::{Entity, EntityGenerator, EntityId, Generation};
-use super::storage::{ArchetypeId, ArchetypeStorage, TypeNode, TypeNodeStorage};
+use super::entity::{Entity, EntityGenerator, EntityId};
+use super::storage::TypeNodeStorage;
 use super::symbol::{Scope, SymbolId, SymbolTable};
 use super::types::{PrimitiveType, Type, TypeFingerprint, TypeId, TypeKind};
 

@@ -4,7 +4,7 @@
 
 use super::branch::Branch;
 use super::rag::TypeEmbeddings;
-use crate::core::{SharedUniverse, TypeUniverse};
+use crate::core::SharedUniverse;
 use crate::query::QueryEngine;
 use crate::validate::StreamingChecker;
 

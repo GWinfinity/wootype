@@ -4,11 +4,12 @@
 
 use super::error::{ErrorSeverity, SoftError, ValidationError};
 use super::infer::{LookaheadContext, TypeInference};
-use crate::core::{Entity, SharedUniverse, Type, TypeId, TypeUniverse};
+use crate::core::{SharedUniverse, TypeId, TypeUniverse};
 use crate::query::QueryEngine;
+use std::sync::Arc;
 
 use parking_lot::RwLock;
-use std::sync::Arc;
+
 use tokio::sync::{broadcast, mpsc};
 
 /// Events in the validation stream

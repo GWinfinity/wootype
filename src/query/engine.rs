@@ -1,10 +1,10 @@
 //! Query Engine - High-performance type queries
 
 use crate::core::types::{InterfaceMethod, TypeFingerprint};
-use crate::core::{Entity, SharedUniverse, Type, TypeFlags, TypeId, TypeKind, TypeUniverse};
+use crate::core::{SharedUniverse, Type, TypeId, TypeKind, TypeUniverse};
 
 use dashmap::DashMap;
-use parking_lot::RwLock;
+
 use rayon::prelude::*;
 use std::sync::Arc;
 

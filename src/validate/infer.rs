@@ -3,7 +3,7 @@
 //! Predicts types based on context to provide AI guidance.
 
 use super::stream::{BinaryOp, Expression, LiteralValue, UnaryOp};
-use crate::core::{PrimitiveType, SharedUniverse, Type, TypeId, TypeKind, TypeUniverse};
+use crate::core::{PrimitiveType, SharedUniverse, TypeId, TypeKind};
 use im::HashMap as ImHashMap;
 
 /// Type inference engine with look-ahead support

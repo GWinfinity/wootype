@@ -3,13 +3,13 @@
 //! Main daemon implementation for running wootype as a service.
 
 use crate::agent::AgentCoordinator;
-use crate::api::{ApiConfig, ApiServer, GrpcTypeService, WebSocketServer};
+use crate::api::{GrpcTypeService, WebSocketServer};
 use crate::core::SharedUniverse;
 
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tokio::sync::RwLock;
-use tracing::{error, info, warn};
+
+use tracing::{error, info};
 
 /// Daemon configuration
 #[derive(Debug, Clone)]
@@ -32,10 +32,18 @@ pub struct DaemonConfig {
 
 impl Default for DaemonConfig {
     fn default() -> Self {
+        #[cfg(unix)]
+        let ipc_socket = dirs::runtime_dir()
+            .unwrap_or_else(std::env::temp_dir)
+            .join("wootype.sock");
+
+        #[cfg(windows)]
+        let ipc_socket = std::env::temp_dir().join("wootype.sock");
+
         Self {
             grpc_addr: "[::1]:50051".parse().unwrap(),
             ws_addr: "[::1]:8080".parse().unwrap(),
-            ipc_socket: std::path::PathBuf::from("/tmp/wootype.sock"),
+            ipc_socket,
             preload_stdlib: false,
             enable_grpc: true,
             enable_ws: true,

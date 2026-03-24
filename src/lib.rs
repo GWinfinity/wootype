@@ -265,7 +265,6 @@ pub use agent::{
 /// Version of the library
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// Re-export commonly used types
 pub mod prelude {
     //! 常用类型的便捷导入
     //!
@@ -314,7 +313,6 @@ pub fn init_logging() {
         .init();
 }
 
-/// Build information
 pub mod build {
     //! 构建信息
     //!
@@ -333,7 +331,6 @@ pub mod build {
     };
 }
 
-/// 功能开关
 pub mod features {
     //! 编译时功能开关
 

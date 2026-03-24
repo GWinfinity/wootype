@@ -4,7 +4,6 @@
 //! of type safety. Supports migration from untyped to fully typed.
 
 use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
 
 use super::{ErrorType, Span, Type, TypeError};
 

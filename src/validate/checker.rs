@@ -2,15 +2,15 @@
 //!
 //! Validates expressions as they arrive from AI generation.
 
-use super::error::{ErrorCollection, SoftError, ValidationError};
+use super::error::{ErrorCollection, SoftError};
 use super::infer::{LookaheadContext, TypeInference};
 use super::stream::{Expression, ExpressionId, SourcePosition, ValidationResult};
-use crate::core::{SharedUniverse, TypeId, TypeKind};
+use crate::core::{SharedUniverse, TypeId, TypeUniverse};
 use crate::query::QueryEngine;
+use std::sync::Arc;
 
 use im::HashMap as ImHashMap;
 use parking_lot::RwLock;
-use std::sync::Arc;
 
 /// Streaming type checker state
 pub struct StreamingChecker {

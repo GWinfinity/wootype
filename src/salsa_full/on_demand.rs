@@ -7,14 +7,13 @@
 //! - Memory-efficient representation
 
 use std::collections::{HashMap, HashSet};
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::path::PathBuf;
 
 use dashmap::DashMap;
 use parking_lot::RwLock;
 use rayon::prelude::*;
 
-use super::{Location, SourceFile, Span, Symbol, SymbolKind, Type, TypeDatabase};
+use super::{Location, Span, Symbol, SymbolKind, Type};
 
 /// Global symbol index for the entire workspace
 pub struct WorkspaceIndex {
@@ -556,6 +555,7 @@ fn extract_function_name(line: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Arc;
 
     #[test]
     fn test_index_file_shallow() {

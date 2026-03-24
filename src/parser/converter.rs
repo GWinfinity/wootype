@@ -3,8 +3,8 @@
 //! Converts Go AST nodes to wootype type representations.
 
 use super::ast::*;
-use crate::core::types::{ChanDir, FuncParam, InterfaceMethod, StructField, TypeFingerprint};
-use crate::core::{Entity, PrimitiveType, SharedUniverse, Type, TypeId, TypeKind};
+use crate::core::types::{FuncParam, InterfaceMethod, StructField};
+use crate::core::{PrimitiveType, SharedUniverse, Type, TypeId, TypeKind};
 
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;

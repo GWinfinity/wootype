@@ -2,15 +2,15 @@
 //!
 //! Provides compatibility layer for gopls and Go compiler integration.
 
-use super::protocol::{Request, Response, SourcePosition, TypeCheckContext};
 use crate::agent::AgentSession;
-use crate::core::{SharedUniverse, TypeId};
+use crate::core::{SharedUniverse, TypeUniverse};
 
 use std::process::Stdio;
 use std::sync::Arc;
+
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, Command};
-use tracing::{error, info};
+use tracing::info;
 
 /// Shim for Go compiler integration
 pub struct GoCompilerShim {

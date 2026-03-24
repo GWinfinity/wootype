@@ -2,7 +2,7 @@
 //!
 //! Enables semantic search over types for AI agents.
 
-use crate::core::{SharedUniverse, Type, TypeId, TypeKind};
+use crate::core::{Type, TypeId, TypeKind};
 use dashmap::DashMap;
 use std::sync::Arc;
 

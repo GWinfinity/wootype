@@ -10,7 +10,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use super::{DocumentLocation, Position, Range};
-use crate::salsa_full::{FunctionSignature, SymbolKind, Type};
+use crate::salsa_full::{SymbolKind, Type};
 
 /// 检查引擎
 pub struct CheckEngine {

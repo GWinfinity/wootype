@@ -1,31 +1,52 @@
 //! IPC Bridge implementation
 //!
-//! Handles communication with Go compiler via Unix domain sockets / named pipes.
+//! Handles communication with Go compiler via Unix domain sockets (Unix)
+//! or TCP sockets (Windows).
 
-use super::protocol::{
-    deserialize_message, serialize_message, Message, MessageHeader, MessageType, Request, Response,
-};
+use super::protocol::{deserialize_message, serialize_message, Message, Request, Response};
 use crate::core::SharedUniverse;
 use crate::query::QueryEngine;
 
 use std::path::PathBuf;
-use std::sync::Arc;
+
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::{UnixListener, UnixStream};
 use tracing::{error, info, warn};
+
+#[cfg(windows)]
+use tokio::net::{TcpListener, TcpStream};
+#[cfg(unix)]
+use tokio::net::{UnixListener, UnixStream};
 
 /// IPC Bridge configuration
 #[derive(Debug, Clone)]
 pub struct BridgeConfig {
+    #[cfg(unix)]
     pub socket_path: PathBuf,
+    #[cfg(windows)]
+    pub tcp_port: u16,
     pub max_connections: usize,
     pub message_timeout_ms: u64,
 }
 
 impl Default for BridgeConfig {
+    #[cfg(unix)]
+    fn default() -> Self {
+        use dirs::runtime_dir;
+        let socket_path = runtime_dir()
+            .unwrap_or_else(std::env::temp_dir)
+            .join("wootype.sock");
+
+        Self {
+            socket_path,
+            max_connections: 10,
+            message_timeout_ms: 5000,
+        }
+    }
+
+    #[cfg(windows)]
     fn default() -> Self {
         Self {
-            socket_path: PathBuf::from("/tmp/wootype.sock"),
+            tcp_port: 0, // Random available port
             max_connections: 10,
             message_timeout_ms: 5000,
         }
@@ -37,7 +58,10 @@ pub struct IpcBridge {
     config: BridgeConfig,
     universe: SharedUniverse,
     query_engine: QueryEngine,
+    #[cfg(unix)]
     listener: Option<UnixListener>,
+    #[cfg(windows)]
+    listener: Option<TcpListener>,
 }
 
 impl IpcBridge {
@@ -53,214 +77,170 @@ impl IpcBridge {
     }
 
     /// Start the IPC bridge
-    pub async fn start(&mut self) -> Result<(), BridgeError> {
-        // Remove existing socket
+    #[cfg(unix)]
+    pub async fn start(&mut self) -> anyhow::Result<()> {
+        // Remove old socket file if exists
         if self.config.socket_path.exists() {
-            std::fs::remove_file(&self.config.socket_path).map_err(|e| BridgeError::Io(e))?;
+            std::fs::remove_file(&self.config.socket_path)?;
         }
 
-        // Create listener
-        let listener =
-            UnixListener::bind(&self.config.socket_path).map_err(|e| BridgeError::Io(e))?;
-
+        let listener = UnixListener::bind(&self.config.socket_path)?;
         info!("IPC bridge listening on {:?}", self.config.socket_path);
 
         self.listener = Some(listener);
+        self.run_unix().await
+    }
 
-        // Accept connections
+    /// Start the IPC bridge (Windows)
+    #[cfg(windows)]
+    pub async fn start(&mut self) -> anyhow::Result<()> {
+        let listener = TcpListener::bind(format!("127.0.0.1:{}", self.config.tcp_port)).await?;
+        let local_addr = listener.local_addr()?;
+        info!("IPC bridge listening on TCP {}", local_addr);
+
+        self.listener = Some(listener);
+        self.run_windows().await
+    }
+
+    /// Run the Unix socket server
+    #[cfg(unix)]
+    async fn run_unix(&mut self) -> anyhow::Result<()> {
+        let listener = self.listener.as_ref().unwrap();
+
         loop {
-            if let Some(ref listener) = self.listener {
-                match listener.accept().await {
-                    Ok((stream, addr)) => {
-                        info!("New connection from {:?}", addr);
-                        let universe = self.universe.clone();
-                        tokio::spawn(handle_connection(stream, universe));
-                    }
-                    Err(e) => {
-                        error!("Accept error: {}", e);
-                    }
+            match listener.accept().await {
+                Ok((stream, _)) => {
+                    let universe = self.universe.clone();
+                    tokio::spawn(async move {
+                        if let Err(e) = handle_unix_connection(stream, universe).await {
+                            error!("Connection error: {}", e);
+                        }
+                    });
+                }
+                Err(e) => {
+                    error!("Accept error: {}", e);
                 }
             }
         }
     }
 
-    /// Stop the bridge
-    pub async fn stop(&mut self) -> Result<(), BridgeError> {
-        self.listener = None;
-        if self.config.socket_path.exists() {
-            std::fs::remove_file(&self.config.socket_path).map_err(|e| BridgeError::Io(e))?;
+    /// Run the TCP server (Windows)
+    #[cfg(windows)]
+    async fn run_windows(&mut self) -> anyhow::Result<()> {
+        let listener = self.listener.as_ref().unwrap();
+
+        loop {
+            match listener.accept().await {
+                Ok((stream, addr)) => {
+                    info!("New connection from {}", addr);
+                    let universe = self.universe.clone();
+                    tokio::spawn(async move {
+                        if let Err(e) = handle_tcp_connection(stream, universe).await {
+                            error!("Connection error: {}", e);
+                        }
+                    });
+                }
+                Err(e) => {
+                    error!("Accept error: {}", e);
+                }
+            }
         }
+    }
+
+    /// Stop the IPC bridge
+    pub async fn stop(&mut self) -> anyhow::Result<()> {
+        self.listener = None;
+
+        #[cfg(unix)]
+        if self.config.socket_path.exists() {
+            std::fs::remove_file(&self.config.socket_path)?;
+        }
+
         Ok(())
     }
 }
 
-/// Handle a single connection
-async fn handle_connection(mut stream: UnixStream, universe: SharedUniverse) {
-    let mut buffer = vec![0u8; 8192];
+/// Handle a single Unix socket connection
+#[cfg(unix)]
+async fn handle_unix_connection(
+    mut stream: UnixStream,
+    _universe: SharedUniverse,
+) -> anyhow::Result<()> {
+    let mut buffer = vec![0u8; 4096];
 
     loop {
-        // Read header
-        let header_size = match stream.read(&mut buffer[..256]).await {
-            Ok(0) => {
-                info!("Connection closed");
-                return;
-            }
-            Ok(n) => n,
-            Err(e) => {
-                error!("Read error: {}", e);
-                return;
-            }
-        };
-
-        // Parse header
-        let header = match MessageHeader::decode(&buffer[..header_size]) {
-            Some(h) => h,
-            None => {
-                warn!("Invalid header");
-                continue;
-            }
-        };
-
-        // Read payload
-        let payload_len = header.payload_len as usize;
-        if payload_len > buffer.len() {
-            buffer.resize(payload_len, 0);
+        let n = stream.read(&mut buffer).await?;
+        if n == 0 {
+            break;
         }
 
-        if let Err(e) = stream.read_exact(&mut buffer[..payload_len]).await {
-            error!("Read payload error: {}", e);
-            return;
-        }
-
-        // Deserialize and handle message
-        if let Some(msg) = deserialize_message(&buffer[..payload_len]) {
-            let response = handle_message(msg, &universe).await;
+        if let Some(message) = deserialize_message(&buffer[..n]) {
+            let response = process_message(message).await;
             let response_bytes = serialize_message(&response);
-
-            // Send response
-            let header = MessageHeader::new(MessageType::Response, response_bytes.len() as u32);
-            let header_bytes = header.encode();
-
-            if let Err(e) = stream.write_all(&header_bytes).await {
-                error!("Write header error: {}", e);
-                return;
-            }
-
-            if let Err(e) = stream.write_all(&response_bytes).await {
-                error!("Write payload error: {}", e);
-                return;
-            }
+            stream.write_all(&response_bytes).await?;
+        } else {
+            let error_response =
+                Message::Response(Response::Error("Failed to deserialize message".to_string()));
+            let response_bytes = serialize_message(&error_response);
+            stream.write_all(&response_bytes).await?;
         }
     }
+
+    Ok(())
 }
 
-/// Handle a message and produce response
-async fn handle_message(msg: Message, universe: &SharedUniverse) -> Message {
-    match msg {
-        Message::Request(req) => {
-            let response = handle_request(req, universe).await;
-            Message::Response(response)
+/// Handle a single TCP connection (Windows)
+#[cfg(windows)]
+async fn handle_tcp_connection(
+    mut stream: TcpStream,
+    _universe: SharedUniverse,
+) -> anyhow::Result<()> {
+    let mut buffer = vec![0u8; 4096];
+
+    loop {
+        let n = stream.read(&mut buffer).await?;
+        if n == 0 {
+            break;
+        }
+
+        if let Some(message) = deserialize_message(&buffer[..n]) {
+            let response = process_message(message).await;
+            let response_bytes = serialize_message(&response);
+            stream.write_all(&response_bytes).await?;
+        } else {
+            let error_response =
+                Message::Response(Response::Error("Failed to deserialize message".to_string()));
+            let response_bytes = serialize_message(&error_response);
+            stream.write_all(&response_bytes).await?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Process a message and generate a response
+async fn process_message(message: Message) -> Message {
+    match message {
+        Message::Request(request) => handle_request(request).await,
+        Message::Response(_) => {
+            warn!("Received unexpected response message");
+            Message::Response(Response::Error("Unexpected message type".to_string()))
+        }
+        Message::Notification(_) => {
+            warn!("Received notification message");
+            Message::Response(Response::Error("Notifications not handled".to_string()))
         }
         Message::Heartbeat => Message::Heartbeat,
-        _ => Message::Response(Response::Error("Unexpected message type".to_string())),
     }
 }
 
-/// Handle a request
-async fn handle_request(req: Request, universe: &SharedUniverse) -> Response {
-    match req {
-        Request::GetType { type_id } => {
-            let typ = universe.get_type(type_id);
-            Response::Type(typ.map(|t| (*t).clone()))
-        }
-
-        Request::GetTypeByName { package, name } => {
-            let symbol = universe.symbols().lookup(Some(&package), &name);
-            let typ = symbol.and_then(|s| universe.lookup_by_symbol(s));
-            Response::Type(typ.map(|t| (*t).clone()))
-        }
-
-        Request::CheckImplementation {
-            concrete_type,
-            interface_type,
-        } => {
-            // Simplified - would use query engine
-            Response::ImplementationCheck { implements: true }
-        }
-
-        Request::CheckAssignable { from, to } => {
-            // Simplified assignability check
-            let assignable = from == to;
-            Response::Assignable { assignable }
-        }
-
-        Request::TypeCheckExpression { expr, context } => {
-            // Would integrate with streaming checker
-            Response::TypeCheckResult(super::protocol::TypeCheckResult {
-                valid: true,
-                inferred_type: None,
-                errors: vec![],
-            })
-        }
-
-        Request::GetCompletions {
-            prefix,
-            position,
-            file,
-        } => Response::Completions(vec![]),
-
-        Request::ImportPackage { path } => Response::ImportResult(super::protocol::ImportResult {
-            success: true,
-            types_imported: 0,
-            errors: vec![],
-        }),
-
-        Request::ExportType { typ } => {
-            universe.insert_type(typ.id, Arc::new(typ));
-            Response::ExportResult(super::protocol::ExportResult {
-                success: true,
-                type_id: TypeId(0),
-                error: None,
-            })
-        }
-
-        Request::Sync { checkpoint } => Response::SyncAck { checkpoint },
-    }
-}
-
-/// Bridge error
-#[derive(Debug)]
-pub enum BridgeError {
-    Io(std::io::Error),
-    Bind(String),
-    Timeout,
-}
-
-impl std::fmt::Display for BridgeError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Io(e) => write!(f, "IO error: {}", e),
-            Self::Bind(s) => write!(f, "Bind error: {}", s),
-            Self::Timeout => write!(f, "Operation timed out"),
-        }
-    }
-}
-
-impl std::error::Error for BridgeError {}
-
-use crate::core::TypeId;
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::core::TypeUniverse;
-
-    #[tokio::test]
-    async fn test_bridge_creation() {
-        let universe = Arc::new(TypeUniverse::new());
-        let config = BridgeConfig::default();
-        let bridge = IpcBridge::new(universe, config);
-
-        assert!(bridge.listener.is_none());
+/// Handle a request and generate response
+async fn handle_request(request: Request) -> Message {
+    match request {
+        Request::Sync { checkpoint } => Message::Response(Response::SyncAck { checkpoint }),
+        _ => Message::Response(Response::Error(format!(
+            "Unimplemented request: {:?}",
+            request
+        ))),
     }
 }

@@ -12,7 +12,6 @@ pub mod db;
 pub mod inputs;
 pub mod lsp;
 
-pub use db::*;
 pub use inputs::*;
 pub use lsp::*;
 

@@ -2,9 +2,6 @@
 //!
 //! Simplified AST for type extraction.
 
-use crate::core::{SymbolId, TypeId};
-use std::sync::Arc;
-
 /// Go source file AST
 #[derive(Debug, Clone)]
 pub struct GoFile {

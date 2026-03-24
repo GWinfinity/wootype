@@ -7,11 +7,10 @@
 //! - find_implementations: 查找实现
 //! - workspace_symbol: 工作区符号
 
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use super::{DocumentLocation, Position, Range, SemanticInfo};
-use crate::salsa_full::{Location, SourceFile, Symbol, SymbolKind, Type, TypeDatabase};
+use crate::salsa_full::{SymbolKind, Type};
 
 /// 查询引擎
 pub struct QueryEngine {

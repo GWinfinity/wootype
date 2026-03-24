@@ -3,12 +3,11 @@
 //! Implements cache-friendly, SIMD-ready component storage
 //! inspired by Bevy ECS and Flecs.
 
-use super::entity::{Entity, EntityId, Generation};
+use super::entity::{Entity, EntityId};
 use dashmap::DashMap;
-use parking_lot::{Mutex, RwLock};
+
 use std::any::{Any, TypeId as StdTypeId};
 use std::collections::HashMap;
-use std::sync::Arc;
 
 /// Type-erased component storage for a single component type
 pub trait ComponentStorage: Send + Sync {

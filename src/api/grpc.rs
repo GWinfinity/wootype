@@ -7,9 +7,9 @@ use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio_stream::{wrappers::ReceiverStream, Stream, StreamExt};
 use tonic::{Request, Response, Status, Streaming};
-use tracing::{debug, error, info, warn};
+use tracing::{info, warn};
 
-use crate::agent::{AgentCoordinator, SessionId};
+use crate::agent::AgentCoordinator;
 use crate::core::SharedUniverse;
 
 // Include generated proto

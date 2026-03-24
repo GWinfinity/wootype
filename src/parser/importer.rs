@@ -4,12 +4,12 @@
 
 use super::ast::GoFile;
 use super::converter::TypeConverter;
-use crate::core::{PackageInfo, SharedUniverse, SymbolId, TypeId, TypeUniverse};
+use crate::core::{PackageInfo, SharedUniverse, SymbolId};
 
 use dashmap::DashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 
 /// Package import result
 #[derive(Debug, Clone)]

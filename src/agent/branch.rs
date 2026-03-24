@@ -2,8 +2,8 @@
 //!
 //! Each Agent session gets a branch that can be committed or rolled back.
 
-use crate::core::universe::{SpeculativeTransaction, UniverseSnapshot};
-use crate::core::{Entity, SharedUniverse, Type, TypeId, TypeUniverse};
+use crate::core::universe::UniverseSnapshot;
+use crate::core::{SharedUniverse, Type, TypeId, TypeUniverse};
 
 use super::session::{
     CommitError, CommitResult, Conflict, ConflictReason, IsolationLevel, RollbackError,

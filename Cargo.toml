@@ -99,6 +99,13 @@ harness = false
 name = "incremental_benchmark"
 harness = false
 
+[features]
+default = ["salsa", "grpc", "websocket", "lsp"]
+salsa = []
+grpc = []
+websocket = []
+lsp = []
+
 [profile.release]
 opt-level = 3
 lto = "fat"

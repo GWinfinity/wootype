@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use super::{DocumentLocation, Position, Range};
-use crate::salsa_full::{SourceFile, TypeDatabase};
+use crate::salsa_full::TypeDatabase;
 
 /// 重构引擎
 pub struct OperationEngine {

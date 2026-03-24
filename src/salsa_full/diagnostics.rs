@@ -6,7 +6,7 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use super::{ErrorType, Location, Span, Type, TypeError};
+use super::{ErrorType, Location, TypeError};
 
 /// Error severity for styling
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -223,6 +223,7 @@ impl Default for FileCache {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::salsa_full::{Span, Type};
 
     #[test]
     fn test_type_mismatch_diagnostic() {

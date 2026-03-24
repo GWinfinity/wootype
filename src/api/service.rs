@@ -4,13 +4,12 @@
 
 use crate::agent::{AgentCoordinator, AgentId, AgentType, ConnectionRequest, SessionId};
 use crate::core::{SharedUniverse, TypeId};
-use crate::query::engine::{QueryResult, TypeConstraint};
+use crate::query::engine::QueryResult;
 use crate::query::QueryEngine;
-use crate::validate::{StreamingChecker, ValidationStream};
 
 use std::sync::Arc;
 use tokio::sync::mpsc;
-use tonic::{Request, Response, Status};
+use tonic::Status;
 
 /// Type service handler
 pub struct TypeService {

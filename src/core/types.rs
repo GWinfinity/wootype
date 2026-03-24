@@ -3,7 +3,6 @@
 //! Implements a comprehensive type system supporting all Go types
 //! with efficient fingerprinting for SIMD-accelerated lookups.
 
-use bitflags::bitflags;
 use std::sync::Arc;
 
 /// Unique type identifier (interned)

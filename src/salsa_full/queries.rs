@@ -1,8 +1,6 @@
 //! Salsa tracked queries for incremental type checking
 
 use super::*;
-use salsa::Database;
-use std::collections::HashMap;
 
 // ============================================================================
 // Tracked structs for intermediate results

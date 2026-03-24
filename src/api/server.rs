@@ -8,9 +8,8 @@ use crate::core::SharedUniverse;
 
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tokio::sync::mpsc;
-use tonic::{transport::Server, Request, Response, Status};
-use tracing::{error, info};
+
+use tracing::info;
 
 /// API server configuration
 #[derive(Debug, Clone)]

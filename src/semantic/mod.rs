@@ -29,11 +29,10 @@ pub mod checks;
 pub mod operations;
 pub mod queries;
 
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
-use crate::salsa_full::{Location, SourceFile, Symbol, Type, TypeDatabase};
+use crate::salsa_full::{Symbol, Type, TypeDatabase};
 
 // Re-export main types
 pub use self::checks::{CheckEngine, CompatibilityResult, InterfaceCheckResult};
