@@ -185,9 +185,10 @@ impl TypeConverter {
             let typ = self.convert_type_expr(&field.typ).await?;
 
             if field.names.is_empty() {
-                // Embedded field
+                // Embedded field - get the implicit field name from type
+                let field_name = self.get_embedded_field_name(typ);
                 struct_fields.push(StructField {
-                    name: Arc::from(""),
+                    name: Arc::from(field_name.as_str()),
                     typ,
                     embedded: true,
                     tag: field.tag.clone().map(|t| Arc::from(t.as_str())),
@@ -363,6 +364,26 @@ impl TypeConverter {
 
     fn next_type_id(&self) -> TypeId {
         TypeId(self.type_counter.fetch_add(1, Ordering::SeqCst))
+    }
+
+    /// Get the implicit field name for an embedded field
+    /// In Go, embedded field's implicit name is the type name (without package path)
+    fn get_embedded_field_name(&self, type_id: TypeId) -> String {
+        if let Some(typ) = self.universe.get_type(type_id) {
+            match &typ.kind {
+                TypeKind::Named { name, .. } => name.to_string(),
+                TypeKind::Pointer { elem } => {
+                    // For pointer types, use the element type's name
+                    self.get_embedded_field_name(*elem)
+                }
+                _ => {
+                    // For other types, generate a name from the type ID
+                    format!("_embedded_{}", type_id.0)
+                }
+            }
+        } else {
+            format!("_embedded_{}", type_id.0)
+        }
     }
 }
 

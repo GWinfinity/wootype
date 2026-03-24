@@ -460,14 +460,89 @@ impl Type {
 /// Type constraint for generic type parameters
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum TypeConstraint {
-    /// Any type (no constraint)
+    /// Any type (no constraint) - interface{}
     Any,
-    /// Approximation constraint (~T)
+    /// Comparable constraint - types that support == and !=
+    Comparable,
+    /// Ordered constraint - types that support <, <=, >, >=
+    Ordered,
+    /// Approximation constraint (~T) - matches T or types with T as underlying type
     Approx(TypeId),
-    /// Union constraint (A | B | C)
+    /// Union constraint (A | B | C) - matches any of the types
     Union(Vec<TypeId>),
     /// Intersection constraint (must satisfy all)
     Intersection(Vec<TypeId>),
+    /// Specific interface constraint
+    Interface(TypeId),
+}
+
+impl TypeConstraint {
+    /// Check if a type satisfies this constraint
+    pub fn satisfied_by(&self, typ: &Type, universe: &super::TypeUniverse) -> bool {
+        match self {
+            TypeConstraint::Any => true,
+            TypeConstraint::Comparable => typ.flags.contains(TypeFlags::COMPARABLE),
+            TypeConstraint::Ordered => typ.flags.contains(TypeFlags::ORDERED),
+            TypeConstraint::Approx(target_id) => {
+                // Check if type is identical or has the same underlying type
+                if typ.id == *target_id {
+                    return true;
+                }
+                // Check underlying type
+                if let Some(underlying) = typ.underlying() {
+                    return underlying == *target_id;
+                }
+                false
+            }
+            TypeConstraint::Union(types) => {
+                types.iter().any(|t| Self::type_matches(typ, *t, universe))
+            }
+            TypeConstraint::Intersection(types) => types
+                .iter()
+                .all(|t| Self::type_satisfies_constraint(typ, *t, universe)),
+            TypeConstraint::Interface(interface_id) => {
+                // Check if type implements the interface
+                if let Some(interface) = universe.get_type(*interface_id) {
+                    return typ.implements(&interface);
+                }
+                false
+            }
+        }
+    }
+
+    /// Check if two types are identical or one approximates the other
+    fn type_matches(typ: &Type, target_id: TypeId, universe: &super::TypeUniverse) -> bool {
+        if typ.id == target_id {
+            return true;
+        }
+        if let Some(target) = universe.get_type(target_id) {
+            return typ.identical(&target);
+        }
+        false
+    }
+
+    /// Check if type satisfies a constraint represented by another type
+    fn type_satisfies_constraint(
+        typ: &Type,
+        constraint_id: TypeId,
+        universe: &super::TypeUniverse,
+    ) -> bool {
+        if let Some(constraint_type) = universe.get_type(constraint_id) {
+            match &constraint_type.kind {
+                TypeKind::Interface { methods, .. } if methods.is_empty() => {
+                    // Empty interface - any type satisfies
+                    true
+                }
+                TypeKind::Interface { .. } => {
+                    // Interface with methods
+                    typ.implements(&constraint_type)
+                }
+                _ => typ.identical(&constraint_type),
+            }
+        } else {
+            false
+        }
+    }
 }
 
 #[cfg(test)]

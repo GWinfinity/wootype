@@ -6,6 +6,7 @@
 //! - Speculative transaction support for AI Agents
 
 use super::entity::{Entity, EntityGenerator, EntityId};
+use super::method::{Method, MethodSet, Receiver};
 use super::storage::TypeNodeStorage;
 use super::symbol::{Scope, SymbolId, SymbolTable};
 use super::types::{PrimitiveType, Type, TypeFingerprint, TypeId, TypeKind};
@@ -111,6 +112,11 @@ pub struct TypeUniverse {
 
     // Transaction management
     active_transactions: Mutex<Vec<SpeculativeTransaction>>,
+
+    // Method table: TypeId + Receiver -> MethodSet
+    // Separated by receiver type for efficient lookup
+    value_methods: DashMap<TypeId, MethodSet>,
+    pointer_methods: DashMap<TypeId, MethodSet>,
 }
 
 /// Package metadata
@@ -140,6 +146,8 @@ impl TypeUniverse {
             scope_stack: RwLock::new(vec![Scope::new()]),
             packages: DashMap::new(),
             active_transactions: Mutex::new(Vec::new()),
+            value_methods: DashMap::new(),
+            pointer_methods: DashMap::new(),
         };
 
         // Bootstrap primitive types
@@ -308,6 +316,68 @@ impl TypeUniverse {
     /// Type count
     pub fn type_count(&self) -> usize {
         self.types.len()
+    }
+
+    // =========================================================================
+    // Method Set Operations
+    // =========================================================================
+
+    /// Register a method for a type
+    pub fn register_method(&self, type_id: TypeId, receiver: Receiver, method: Method) {
+        match receiver {
+            Receiver::Value => {
+                self.value_methods.entry(type_id).or_default().add(method);
+            }
+            Receiver::Pointer => {
+                self.pointer_methods.entry(type_id).or_default().add(method);
+            }
+        }
+    }
+
+    /// Get methods for a type with specific receiver
+    pub fn get_methods_for_type(&self, type_id: TypeId, receiver: Receiver) -> MethodSet {
+        match receiver {
+            Receiver::Value => self
+                .value_methods
+                .get(&type_id)
+                .map(|m| m.clone())
+                .unwrap_or_default(),
+            Receiver::Pointer => self
+                .pointer_methods
+                .get(&type_id)
+                .map(|m| m.clone())
+                .unwrap_or_default(),
+        }
+    }
+
+    /// Get complete method set (both value and pointer receivers)
+    pub fn get_complete_method_set(&self, type_id: TypeId) -> MethodSet {
+        let mut set = self.get_methods_for_type(type_id, Receiver::Value);
+        let ptr_set = self.get_methods_for_type(type_id, Receiver::Pointer);
+        set.union(&ptr_set);
+        set
+    }
+
+    /// Check if a type implements an interface
+    pub fn implements_interface(&self, concrete: TypeId, interface: TypeId) -> bool {
+        super::method::implements_interface(concrete, interface, self)
+    }
+
+    /// Lookup method by name
+    pub fn lookup_method(&self, type_id: TypeId, name: &str) -> Option<Method> {
+        // Try value methods first
+        if let Some(methods) = self.value_methods.get(&type_id) {
+            if let Some(method) = methods.lookup(name) {
+                return Some(method.clone());
+            }
+        }
+        // Then try pointer methods
+        if let Some(methods) = self.pointer_methods.get(&type_id) {
+            if let Some(method) = methods.lookup(name) {
+                return Some(method.clone());
+            }
+        }
+        None
     }
 }
 
