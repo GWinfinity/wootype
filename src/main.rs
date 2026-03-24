@@ -221,8 +221,15 @@ async fn run_daemon(
     info!("Agent coordinator initialized");
 
     // Start IPC bridge
+    #[cfg(unix)]
     let bridge_config = BridgeConfig {
         socket_path: socket,
+        max_connections: 100,
+        message_timeout_ms: 5000,
+    };
+    #[cfg(windows)]
+    let bridge_config = BridgeConfig {
+        tcp_port: 9527,
         max_connections: 100,
         message_timeout_ms: 5000,
     };

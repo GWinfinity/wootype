@@ -14,7 +14,7 @@
 //!
 //! [![Crates.io](https://img.shields.io/crates/v/wootype)](https://crates.io/crates/wootype)
 //! [![Docs.rs](https://docs.rs/wootype/badge.svg)](https://docs.rs/wootype)
-//! [![License](https://img.shields.io/badge/license-MIT-blue)](../LICENSE)
+//! [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](../LICENSE)
 //!
 //! 极速 Go 类型检查引擎，采用增量计算架构 (Salsa) 和 ECS 存储模型，
 //! 实现亚毫秒级类型检查响应。

@@ -4,11 +4,9 @@
 
 [![Crates.io](https://img.shields.io/crates/v/wootype)](https://crates.io/crates/wootype)
 [![Docs.rs](https://docs.rs/wootype/badge.svg)](https://docs.rs/wootype)
-[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 
 wootype is an ultra-fast Go type checking engine written in Rust, featuring incremental computation architecture (Salsa) and ECS storage model for sub-millisecond type checking response.
-
-> 🐕 **Part of Woo Ecosystem**: [woofind](https://github.com/yourusername/woofind) → [woolink](https://github.com/yourusername/woolink) → [wootype](https://github.com/yourusername/wootype)
 
 📖 [中文文档](README_CN.md)
 
@@ -310,34 +308,6 @@ wootype cycles --strict
 
 ---
 
-## 🔌 Ecosystem
-
-wootype is a core component of the Woo Ecosystem:
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     Woo Ecosystem                            │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│   ┌──────────┐        ┌──────────┐        ┌──────────┐     │
-│   │ woofind  │───────▶│ woolink  │◀───────│ wootype  │     │
-│   │ (Search) │ Index  │  (Link)  │  Types  │ (Types)  │     │
-│   └──────────┘        └────┬─────┘        └──────────┘     │
-│                             │                                │
-│                             ▼                                │
-│                    ┌─────────────────┐                      │
-│                    │   AI Agent /    │                      │
-│                    │   IDE / LSP     │                      │
-│                    └─────────────────┘                      │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
-```
-
-- **[woofind](https://crates.io/crates/woofind)**: Symbol search engine, provides symbol index
-- **[woolink](https://crates.io/crates/woolink)**: Cross-package symbol resolution, global symbol table
-
----
-
 ## 🤝 Contributing
 
 Contributions welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md).
@@ -354,7 +324,7 @@ cargo bench
 
 ## 📄 License
 
-MIT License © [Your Name]
+Apache License 2.0 © [Your Name]
 
 ---
 

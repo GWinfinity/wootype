@@ -4,9 +4,9 @@ version = "0.2.0"
 edition = "2021"
 authors = ["Wootype Team"]
 description = "Blazing-fast Go type system service —— Vibe Coding toolchain"
-license = "MIT"
-repository = "https://github.com/wootype/wootype"
-homepage = "https://github.com/wootype/wootype"
+license = "Apache-2.0"
+repository = "https://github.com/GWinfinity/wootype"
+homepage = "https://github.com/GWinfinity/wootype"
 documentation = "https://docs.rs/wootype"
 
 [dependencies]

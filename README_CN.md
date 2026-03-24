@@ -4,11 +4,9 @@
 
 [![Crates.io](https://img.shields.io/crates/v/wootype)](https://crates.io/crates/wootype)
 [![Docs.rs](https://docs.rs/wootype/badge.svg)](https://docs.rs/wootype)
-[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 
 wootype 是用 Rust 编写的极速 Go 类型检查引擎，采用增量计算架构 (Salsa) 和 ECS 存储模型，实现亚毫秒级类型检查响应。
-
-> 🐕 **Woo Ecosystem 核心组件**: [woofind](https://github.com/yourusername/woofind) → [woolink](https://github.com/yourusername/woolink) → [wootype](https://github.com/yourusername/wootype)
 
 ---
 
@@ -345,45 +343,6 @@ wootype cycles --strict
 
 ---
 
-## 🔌 生态系统
-
-wootype 是 Woo Ecosystem 的核心组件：
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     Woo Ecosystem                            │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│   ┌──────────┐        ┌──────────┐        ┌──────────┐     │
-│   │ woofind  │───────▶│ woolink  │◀───────│ wootype  │     │
-│   │ (搜索)    │ 索引   │ (链接)   │  类型   │ (类型)   │     │
-│   └──────────┘        └────┬─────┘        └──────────┘     │
-│                             │                                │
-│                             ▼                                │
-│                    ┌─────────────────┐                      │
-│                    │   AI Agent /    │                      │
-│                    │   IDE / LSP     │                      │
-│                    └─────────────────┘                      │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
-```
-
-- **[woofind](https://crates.io/crates/woofind)**: 符号搜索引擎，提供符号索引
-- **[woolink](https://crates.io/crates/woolink)**: 跨包符号解析，全局符号表
-
-### 与 woolink 集成
-
-```rust
-use wootype::prelude::*;
-use woolink::SymbolUniverse;
-
-// 从 woolink 符号表构建类型宇宙
-let symbol_universe = SymbolUniverse::new(100_000);
-let type_universe = TypeUniverse::from_symbols(&symbol_universe);
-```
-
----
-
 ## 🤝 贡献
 
 欢迎贡献！请查看 [CONTRIBUTING.md](CONTRIBUTING.md)。
@@ -400,7 +359,7 @@ cargo bench
 
 ## 📄 许可证
 
-MIT License © [Your Name]
+Apache License 2.0 © [Your Name]
 
 ---
 
