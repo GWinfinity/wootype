@@ -1,6 +1,7 @@
 //! WebSocket client example
 //!
 //! Demonstrates how to connect to the TypeDaemon via WebSocket.
+#![allow(dead_code, unused_variables, clippy::single_match)]
 
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};

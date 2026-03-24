@@ -229,8 +229,7 @@ impl AgentCoordinator {
 
     /// Broadcast a message to all agents
     pub async fn broadcast(&self, message: CoordinatorMessage) {
-        for session_ref in self.sessions.iter() {
-            let session = session_ref.value().read().await;
+        for _session_ref in self.sessions.iter() {
             // Would send message to session
             let _ = message.clone();
         }

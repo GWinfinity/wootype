@@ -1,6 +1,7 @@
 //! Wootype Daemon - Type System as a Service
 //!
 //! CLI entry point for the wootype type checking service.
+#![allow(unused_imports, unused_variables)]
 //!
 //! # Usage
 //!
@@ -216,7 +217,7 @@ async fn run_daemon(
     }
 
     // Create coordinator
-    let coordinator = Arc::new(AgentCoordinator::new(universe.clone()));
+    let _coordinator = Arc::new(AgentCoordinator::new(universe.clone()));
     info!("Agent coordinator initialized");
 
     // Start IPC bridge
@@ -282,7 +283,7 @@ async fn run_query(
     pattern: Option<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let universe = Arc::new(TypeUniverse::new());
-    let engine = wootype::query::QueryEngine::new(universe);
+    let _engine = wootype::query::QueryEngine::new(universe);
 
     info!("Querying types...");
 

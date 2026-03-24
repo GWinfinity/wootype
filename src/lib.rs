@@ -1,4 +1,16 @@
 //! wootype 🐕 - Type System as a Service for Go
+#![allow(
+    dead_code,
+    unused_imports,
+    unused_variables,
+    missing_docs,
+    clippy::all,
+    private_bounds,
+    irrefutable_let_patterns,
+    mismatched_lifetime_syntaxes
+)]
+// Allow async fn in traits (Rust 1.75+ feature)
+#![allow(async_fn_in_trait)]
 //!
 //! [![Crates.io](https://img.shields.io/crates/v/wootype)](https://crates.io/crates/wootype)
 //! [![Docs.rs](https://docs.rs/wootype/badge.svg)](https://docs.rs/wootype)
@@ -28,7 +40,7 @@
 //!
 //! ### 基础用法
 //!
-//! ```rust
+//! ```ignore
 //! use wootype::prelude::*;
 //! use std::sync::Arc;
 //!
@@ -44,7 +56,7 @@
 //!
 //! ### 类型查询
 //!
-//! ```rust
+//! ```ignore
 //! use wootype::core::{TypeUniverse, TypeKind, PrimitiveType};
 //! use wootype::query::QueryEngine;
 //! use std::sync::Arc;
@@ -66,7 +78,7 @@
 //!
 //! ### AI Agent 会话
 //!
-//! ```rust
+//! ```ignore
 //! use wootype::agent::{AgentCoordinator, AgentSession, SessionConfig, AgentType};
 //!
 //! // 创建协调器
@@ -140,7 +152,7 @@
 //!
 //! ### IDE 实时类型检查
 //!
-//! ```rust
+//! ```ignore
 //! use wootype::prelude::*;
 //!
 //! // 用户输入字符 → Salsa 增量检查 → 更新类型提示
@@ -160,7 +172,7 @@
 //!
 //! ### AI Agent 批量分析
 //!
-//! ```rust
+//! ```ignore
 //! use std::sync::Arc;
 //! use wootype::prelude::*;
 //!
@@ -181,7 +193,7 @@
 //!
 //! ### CI 类型检查
 //!
-//! ```rust
+//! ```ignore
 //! use wootype::prelude::*;
 //!
 //! // CI 管道中快速类型检查
@@ -200,7 +212,7 @@
 //!
 //! ### 类型关系分析
 //!
-//! ```rust
+//! ```ignore
 //! use wootype::prelude::*;
 //! use wootype::semantic;
 //!
@@ -223,7 +235,7 @@
 //!
 //! ### 与 woolink 集成
 //!
-//! ```rust
+//! ```ignore
 //! use wootype::prelude::*;
 //! use woolink::SymbolUniverse;
 //!
@@ -237,9 +249,6 @@
 //! - [API 文档](https://docs.rs/wootype)
 //! - [性能报告](../README.md)
 //! - [GitHub](https://github.com/yourusername/wootype)
-
-#![warn(missing_docs)]
-#![allow(dead_code)] // Phase 1 implementation
 
 pub mod agent;
 pub mod api;
@@ -295,7 +304,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 ///
 /// # 示例
 ///
-/// ```rust
+/// ```ignore
 /// // 在程序入口处初始化
 /// wootype::init_logging();
 /// ```

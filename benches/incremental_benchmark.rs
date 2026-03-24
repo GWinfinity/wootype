@@ -1,4 +1,5 @@
 //! Benchmark for incremental type checking
+#![allow(clippy::all, unused_imports, unused_variables)]
 //!
 //! Compares:
 //! - Cold check (full type check)

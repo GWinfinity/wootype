@@ -5,7 +5,7 @@
 
 use parking_lot::RwLock;
 use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 use std::sync::Arc;
 
 pub mod db;
@@ -545,7 +545,7 @@ impl FunctionChecker {
         }
     }
 
-    fn check_call(&mut self, func: &Expression, args: &[Expression]) -> Type {
+    fn check_call(&mut self, _func: &Expression, args: &[Expression]) -> Type {
         // Simplified - would look up function signature
         for arg in args {
             self.infer_expr(arg);

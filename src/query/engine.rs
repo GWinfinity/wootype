@@ -1,7 +1,7 @@
 //! Query Engine - High-performance type queries
 
 use crate::core::types::{InterfaceMethod, TypeFingerprint};
-use crate::core::{SharedUniverse, Type, TypeId, TypeKind, TypeUniverse};
+use crate::core::{SharedUniverse, Type, TypeId, TypeKind};
 
 use dashmap::DashMap;
 
@@ -148,7 +148,7 @@ impl QueryEngine {
     }
 
     /// Find all types that implement a given interface
-    pub fn find_implementors(&self, interface_id: TypeId) -> Vec<QueryResult<TypeId>> {
+    pub fn find_implementors(&self, _interface_id: TypeId) -> Vec<QueryResult<TypeId>> {
         // Parallel scan through all types
         // In production, this would use an inverted index
 
@@ -350,7 +350,8 @@ pub enum TypeConstraint {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::PrimitiveType;
+    use crate::core::{PrimitiveType, TypeUniverse};
+    use std::sync::Arc;
 
     fn setup_universe() -> SharedUniverse {
         Arc::new(TypeUniverse::new())

@@ -154,51 +154,55 @@ impl TypeKindPattern {
         match (self, kind) {
             (Self::Primitive, TypeKind::Primitive(_)) => true,
             (Self::Named, TypeKind::Named { .. }) => true,
-            (Self::Pointer(elem_pat), TypeKind::Pointer { elem }) => {
+            (Self::Pointer(_elem_pat), TypeKind::Pointer { elem: _ }) => {
                 // Would need to look up type
                 true
             }
-            (Self::Slice(elem_pat), TypeKind::Slice { elem }) => true,
+            (Self::Slice(_elem_pat), TypeKind::Slice { elem: _ }) => true,
             (
-                Self::Array { len, elem },
+                Self::Array { len, elem: _ },
                 TypeKind::Array {
                     len: arr_len,
-                    elem: arr_elem,
+                    elem: _arr_elem,
                 },
             ) => len.map_or(true, |l| l == *arr_len),
             (
-                Self::Map { key, value },
+                Self::Map { key: _, value: _ },
                 TypeKind::Map {
-                    key: m_key,
-                    value: m_value,
+                    key: _m_key,
+                    value: _m_value,
                 },
             ) => true,
             (
-                Self::Chan { dir, elem },
+                Self::Chan { dir, elem: _ },
                 TypeKind::Chan {
                     dir: c_dir,
-                    elem: c_elem,
+                    elem: _c_elem,
                 },
             ) => dir.matches(c_dir),
             (
-                Self::Func { params, results },
+                Self::Func {
+                    params: _,
+                    results: _,
+                },
                 TypeKind::Func {
-                    params: f_params,
-                    results: f_results,
+                    params: _f_params,
+                    results: _f_results,
                     ..
                 },
             ) => {
                 // Check param/result count and patterns
                 true
             }
-            (Self::Struct { fields }, TypeKind::Struct { fields: s_fields }) => {
+            (Self::Struct { fields: _ }, TypeKind::Struct { fields: _s_fields }) => {
                 // Check field count and names
                 true
             }
             (
-                Self::Interface { methods },
+                Self::Interface { methods: _ },
                 TypeKind::Interface {
-                    methods: i_methods, ..
+                    methods: _i_methods,
+                    ..
                 },
             ) => {
                 // Check method signatures

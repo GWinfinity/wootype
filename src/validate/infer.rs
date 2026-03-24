@@ -103,14 +103,14 @@ impl TypeInference {
 
         // Check universe symbols
         let symbol = self.universe.symbols().lookup(None, name)?;
-        let entity = self.universe.lookup_by_symbol(symbol);
+        let _entity = self.universe.lookup_by_symbol(symbol);
 
         // TODO: Map entity to type
         ctx.assignment_target
     }
 
     fn infer_literal(&self, lit: &LiteralValue) -> Option<TypeId> {
-        let prim = match lit {
+        let _prim = match lit {
             LiteralValue::Int(_) => PrimitiveType::UntypedInt,
             LiteralValue::Float(_) => PrimitiveType::UntypedFloat,
             LiteralValue::String(_) => PrimitiveType::UntypedString,
@@ -240,7 +240,7 @@ impl TypeInference {
     }
 
     /// Look-ahead inference: predict likely type for incomplete expression
-    pub fn lookahead_predict(&self, partial: &str, ctx: &LookaheadContext) -> Vec<(TypeId, f32)> {
+    pub fn lookahead_predict(&self, _partial: &str, ctx: &LookaheadContext) -> Vec<(TypeId, f32)> {
         let mut predictions = Vec::new();
 
         // Based on context, predict likely types

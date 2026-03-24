@@ -54,7 +54,7 @@ impl TypeConverter {
         self.universe.insert_type(id, Arc::new(typ));
 
         // Register symbol
-        let symbol = self.universe.symbols().intern(&spec.name);
+        let _symbol = self.universe.symbols().intern(&spec.name);
         // Would associate type with symbol
 
         Ok(id)

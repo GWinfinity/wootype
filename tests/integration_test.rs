@@ -1,4 +1,5 @@
 //! Integration tests for Wootype Phase 1
+#![allow(unused_imports, unused_variables)]
 //!
 //! These tests verify the interaction between multiple components.
 

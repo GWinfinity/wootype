@@ -1,4 +1,5 @@
 //! 对比测试：salsa-rs vs 简化版 salsa
+#![allow(clippy::all, unused_imports, unused_variables)]
 //!
 //! 测试维度：
 //! - 冷启动时间

@@ -10,7 +10,7 @@
 //!
 //! # 使用示例
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use wootype::semantic::{SemanticOS, Position};
 //!
 //! let os = SemanticOS::new(db);

@@ -3,10 +3,9 @@
 //! Provides compatibility layer for gopls and Go compiler integration.
 
 use crate::agent::AgentSession;
-use crate::core::{SharedUniverse, TypeUniverse};
+use crate::core::SharedUniverse;
 
 use std::process::Stdio;
-use std::sync::Arc;
 
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, Command};
@@ -88,7 +87,7 @@ impl GoCompilerShim {
     }
 
     /// Sync types with Go compiler
-    pub async fn sync_types(&self, session: &AgentSession) -> Result<SyncResult, ShimError> {
+    pub async fn sync_types(&self, _session: &AgentSession) -> Result<SyncResult, ShimError> {
         // Export types from session to Go format
         // This would serialize types in a format Go can understand
 
@@ -192,6 +191,7 @@ impl std::error::Error for ShimError {}
 mod tests {
     use super::*;
     use crate::core::TypeUniverse;
+    use std::sync::Arc;
 
     #[tokio::test]
     async fn test_shim_creation() {

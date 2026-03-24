@@ -6,6 +6,7 @@
 //! - find_references: 查找引用
 //! - find_implementations: 查找实现
 //! - workspace_symbol: 工作区符号
+#![allow(missing_docs)]
 
 use std::path::{Path, PathBuf};
 
@@ -167,7 +168,7 @@ impl QueryEngine {
     }
 
     /// 查找调用者
-    pub fn callers(&self, file: &Path, position: Position) -> Vec<DocumentLocation> {
+    pub fn callers(&self, _file: &Path, _position: Position) -> Vec<DocumentLocation> {
         // 实际实现：
         // 1. 找到函数定义
         // 2. 反向索引查找调用点
@@ -177,7 +178,7 @@ impl QueryEngine {
     }
 
     /// 查找被调用者
-    pub fn callees(&self, file: &Path, position: Position) -> Vec<DocumentLocation> {
+    pub fn callees(&self, _file: &Path, _position: Position) -> Vec<DocumentLocation> {
         // 实际实现：
         // 1. 解析函数体
         // 2. 收集所有函数调用
@@ -187,7 +188,7 @@ impl QueryEngine {
     }
 
     /// 语义高亮
-    pub fn semantic_tokens(&self, file: &Path) -> Vec<SemanticToken> {
+    pub fn semantic_tokens(&self, _file: &Path) -> Vec<SemanticToken> {
         // 实际实现：
         // 1. 解析文件
         // 2. 为每个 token 分配语义类型
@@ -197,7 +198,7 @@ impl QueryEngine {
     }
 
     /// 代码折叠范围
-    pub fn folding_ranges(&self, file: &Path) -> Vec<FoldingRange> {
+    pub fn folding_ranges(&self, _file: &Path) -> Vec<FoldingRange> {
         // 实际实现：
         // 1. 解析文件
         // 2. 识别可折叠区域（函数、结构体、导入块等）
@@ -207,7 +208,7 @@ impl QueryEngine {
     }
 
     /// 文档符号
-    pub fn document_symbol(&self, file: &Path) -> Vec<SymbolInfo> {
+    pub fn document_symbol(&self, _file: &Path) -> Vec<SymbolInfo> {
         // 实际实现：
         // 1. 解析文件
         // 2. 收集所有顶级和嵌套符号
@@ -217,7 +218,7 @@ impl QueryEngine {
     }
 
     /// 代码镜头（CodeLens）
-    pub fn code_lens(&self, file: &Path) -> Vec<CodeLens> {
+    pub fn code_lens(&self, _file: &Path) -> Vec<CodeLens> {
         // 实际实现：
         // 1. 识别可测试的函数
         // 2. 识别接口实现

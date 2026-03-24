@@ -180,12 +180,12 @@ impl AgentSession {
 
     /// Rollback to last checkpoint
     pub async fn rollback(&self) -> Result<(), RollbackError> {
-        let mut branch = self.universe.write().await;
+        let branch = self.universe.write().await;
         branch.rollback().await
     }
 
     /// Create a sub-branch (for speculative exploration)
-    pub async fn fork(&self, name: impl Into<String>) -> Result<SessionId, ForkError> {
+    pub async fn fork(&self, _name: impl Into<String>) -> Result<SessionId, ForkError> {
         // Would create a nested branch
         Err(ForkError::NotImplemented)
     }

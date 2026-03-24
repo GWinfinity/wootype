@@ -1,4 +1,5 @@
 //! Core functionality tests for Phase 1
+#![allow(unused_imports, clippy::all)]
 
 use std::sync::Arc;
 

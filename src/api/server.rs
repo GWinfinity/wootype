@@ -140,12 +140,13 @@ impl WebSocketServer {
 mod tests {
     use super::*;
     use crate::core::TypeUniverse;
+    use std::sync::Arc;
 
     #[test]
     fn test_server_creation() {
         let universe = Arc::new(TypeUniverse::new());
         let config = ApiConfig::default();
-        let server = ApiServer::new(config, universe);
+        let _server = ApiServer::new(config, universe);
 
         // Just verify it compiles
     }

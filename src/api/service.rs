@@ -27,7 +27,7 @@ impl TypeService {
 
     /// Get query engine for a session
     fn get_query_engine(&self, session_id: SessionId) -> Option<QueryEngine> {
-        self.coordinator.get_session(session_id).map(|session| {
+        self.coordinator.get_session(session_id).map(|_session| {
             // Would get query engine from session
             QueryEngine::new(self.universe.clone())
         })
@@ -180,7 +180,10 @@ impl TypeService {
                 .into_iter()
                 .map(|t| type_to_result(&t, 1.0))
                 .collect(),
-            TypeQuery::ByName { package, name } => {
+            TypeQuery::ByName {
+                package: _,
+                name: _,
+            } => {
                 // Would look up by symbol
                 vec![]
             }
@@ -223,7 +226,7 @@ impl TypeService {
         );
 
         // Get session's checker
-        let session = self
+        let _session = self
             .coordinator
             .get_session(session_id)
             .ok_or_else(|| Status::not_found("Session not found"))?;

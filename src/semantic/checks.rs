@@ -72,9 +72,8 @@ impl CheckEngine {
         };
 
         if let Some(cached) = self.results.get(&key) {
-            if let CheckResult::Interface(result) = cached.value().clone() {
-                return result;
-            }
+            let CheckResult::Interface(result) = cached.value().clone();
+            return result;
         }
 
         let result = self.perform_interface_check(interface_file, interface_name);
@@ -97,7 +96,7 @@ impl CheckEngine {
         // 4. 记录不匹配的问题
 
         let mut implementations = vec![];
-        let mut issues = vec![];
+        let issues = vec![];
 
         // 模拟：找到一些实现
         implementations.push(ImplementationInfo {

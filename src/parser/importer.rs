@@ -107,7 +107,7 @@ impl PackageImporter {
 
         // Convert types
         let mut types_imported = 0;
-        let mut functions_imported = 0;
+        let functions_imported = 0;
         let mut errors = Vec::new();
 
         for file in &files {
@@ -257,7 +257,7 @@ impl PackageImporter {
     }
 
     /// Parse Go source code
-    fn parse_source(&self, source: &str, path: &Path) -> Result<GoFile, ImportError> {
+    fn parse_source(&self, _source: &str, _path: &Path) -> Result<GoFile, ImportError> {
         // Simplified parsing - would use actual Go parser
         // For now, return placeholder
 

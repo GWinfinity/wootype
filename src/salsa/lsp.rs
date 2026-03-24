@@ -253,7 +253,7 @@ impl LanguageServer for LspServer {
 
     /// Completion request
     async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
-        let url = params.text_document_position.text_document.uri;
+        let _url = params.text_document_position.text_document.uri;
         let position = params.text_document_position.position;
 
         debug!(

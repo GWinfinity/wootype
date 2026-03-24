@@ -104,7 +104,7 @@ impl Branch {
 
     /// Rollback to checkpoint
     pub async fn rollback(&self) -> Result<(), RollbackError> {
-        if let Some(checkpoint) = self.checkpoint.read().await.clone() {
+        if self.checkpoint.read().await.is_some() {
             // Restore from checkpoint
             // In full implementation, would restore universe state
             *self.local_types.write().await = ImHashMap::new();
@@ -200,7 +200,7 @@ impl Branch {
 }
 
 /// Create snapshot of universe state
-async fn create_snapshot(universe: &SharedUniverse) -> UniverseSnapshot {
+async fn create_snapshot(_universe: &SharedUniverse) -> UniverseSnapshot {
     // Simplified - would deep clone state
     UniverseSnapshot::empty()
 }

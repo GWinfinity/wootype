@@ -1,4 +1,5 @@
 //! Tests for Salsa-based incremental type checking
+#![allow(clippy::all, unused_variables)]
 //!
 //! These tests verify:
 //! 1. Function-level incrementality

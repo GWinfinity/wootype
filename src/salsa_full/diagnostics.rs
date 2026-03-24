@@ -50,7 +50,7 @@ pub enum Color {
 /// Convert a type error to a rich diagnostic
 pub fn type_error_to_diagnostic(error: &TypeError, _source: &str, file: &Path) -> RichDiagnostic {
     let mut labels = vec![];
-    let mut notes = vec![];
+    let notes = vec![];
     let mut help = None;
 
     match &error.error_type {

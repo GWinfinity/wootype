@@ -4,9 +4,8 @@
 
 use super::error::{ErrorSeverity, SoftError, ValidationError};
 use super::infer::{LookaheadContext, TypeInference};
-use crate::core::{SharedUniverse, TypeId, TypeUniverse};
+use crate::core::{SharedUniverse, TypeId};
 use crate::query::QueryEngine;
-use std::sync::Arc;
 
 use parking_lot::RwLock;
 
@@ -428,7 +427,7 @@ impl ValidationStream {
         expected: Option<&TypeId>,
     ) -> ValidationResult {
         // Validate function expression
-        let func_result = self.validate_expression(func, None);
+        let _func_result = self.validate_expression(func, None);
 
         // Validate arguments
         for arg in args {
@@ -452,7 +451,7 @@ impl ValidationStream {
 
         // Check if base type has field
         match base_result {
-            ValidationResult::Valid { typ } => {
+            ValidationResult::Valid { typ: _ } => {
                 // Look up field on type
                 ValidationResult::Partial {
                     typ: expected.copied(),
@@ -510,6 +509,7 @@ impl ValidationStream {
 mod tests {
     use super::*;
     use crate::core::TypeUniverse;
+    use std::sync::Arc;
 
     #[tokio::test]
     async fn test_stream_creation() {
