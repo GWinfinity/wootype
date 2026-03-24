@@ -14,6 +14,7 @@ use std::path::PathBuf;
 pub mod database;
 pub mod diagnostics;
 pub mod gradual;
+pub mod incremental;
 pub mod inputs;
 pub mod metrics;
 pub mod on_demand;
@@ -38,6 +39,7 @@ pub use diagnostics::{
     render_diagnostic, type_error_to_diagnostic, Color, FileCache, RichDiagnostic, Severity,
 };
 pub use gradual::{GradualChecker, GradualMode, PythonInterop, RuntimeTag};
+pub use incremental::{ChangeSet, ChangeType, DependencyGraph, IncrementalProcessor};
 pub use metrics::{MetricsCollector, MetricsSnapshot, PerformanceBudget, Timer};
 pub use on_demand::{IndexStats, PackageLoader, WorkspaceIndex};
 

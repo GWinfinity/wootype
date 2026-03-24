@@ -5,15 +5,20 @@
 
 pub mod entity;
 pub mod gomod;
+pub mod gomod_resolver;
 pub mod method;
 pub mod serde_impl;
 pub mod storage;
 pub mod symbol;
 pub mod types;
 pub mod universe;
+pub mod xpackage;
 
 pub use entity::{Entity, EntityId, Generation};
+use gomod_resolver::GoWork;
+pub use gomod_resolver::{ModuleResolver, ModuleSource, ModuleVersion};
 pub use storage::ArchetypeStorage;
 pub use symbol::{Scope, SymbolId, SymbolTable};
 pub use types::{PrimitiveType, Type, TypeFingerprint, TypeFlags, TypeId, TypeKind};
 pub use universe::{PackageInfo, SharedUniverse, TypeUniverse};
+pub use xpackage::{CrossPackageIndex, CrossPackageNavigator, PackageNode, SymbolLocation};
