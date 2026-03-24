@@ -6,7 +6,7 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use super::{Type, TypeError, Span, ErrorType};
+use super::{ErrorType, Span, Type, TypeError};
 
 /// Gradual typing mode for a module or function
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -28,12 +28,12 @@ impl GradualMode {
             GradualMode::Dynamic => 1,
         }
     }
-    
+
     /// Check if this mode allows untyped code
     pub fn allows_untyped(&self) -> bool {
         matches!(self, GradualMode::Gradual | GradualMode::Dynamic)
     }
-    
+
     /// Check if this mode requires full type annotations
     pub fn requires_annotations(&self) -> bool {
         matches!(self, GradualMode::Static)
@@ -117,8 +117,11 @@ impl Default for PythonInterop {
         type_mappings.insert("str".to_string(), Type::String);
         type_mappings.insert("bool".to_string(), Type::Bool);
         type_mappings.insert("list".to_string(), Type::Array(Box::new(Type::Any)));
-        type_mappings.insert("dict".to_string(), Type::Map(Box::new(Type::Any), Box::new(Type::Any)));
-        
+        type_mappings.insert(
+            "dict".to_string(),
+            Type::Map(Box::new(Type::Any), Box::new(Type::Any)),
+        );
+
         Self {
             check_python_calls: true,
             runtime_assertions: true,
@@ -189,20 +192,20 @@ impl GradualChecker {
             migration: MigrationTracker::new(),
         }
     }
-    
+
     pub fn with_python_interop(mut self, interop: PythonInterop) -> Self {
         self.python_interop = Some(interop);
         self
     }
-    
+
     /// Analyze type annotations in code
     pub fn analyze_annotations(&mut self, file: &str, content: &str) -> TypeAnnotations {
         let mut annotated = HashSet::new();
         let mut unannotated = HashSet::new();
-        
+
         for line in content.lines() {
             let line = line.trim();
-            
+
             // Check for function declarations
             if line.starts_with("func ") {
                 if let Some(func_sig) = extract_func_signature(line) {
@@ -217,7 +220,7 @@ impl GradualChecker {
                     }
                 }
             }
-            
+
             // Check for variable declarations
             if line.contains(":=") && !line.contains("// type:") {
                 if let Some(name) = extract_var_name(line) {
@@ -225,14 +228,14 @@ impl GradualChecker {
                 }
             }
         }
-        
+
         let total = annotated.len() + unannotated.len();
         let coverage = if total > 0 {
             (annotated.len() * 100 / total) as u8
         } else {
             100
         };
-        
+
         let state = if coverage == 100 {
             AnnotationState::FullyAnnotated
         } else if coverage == 0 {
@@ -240,23 +243,29 @@ impl GradualChecker {
         } else {
             AnnotationState::PartiallyAnnotated
         };
-        
+
         let annotations = TypeAnnotations {
             state,
             coverage_percent: coverage,
             annotated,
             unannotated,
         };
-        
-        self.annotations.insert(file.to_string(), annotations.clone());
+
+        self.annotations
+            .insert(file.to_string(), annotations.clone());
         annotations
     }
-    
+
     /// Check code with gradual typing rules
-    pub fn check(&self, ty1: &Type, ty2: &Type, annotation_state: AnnotationState) -> GradualCheckResult {
+    pub fn check(
+        &self,
+        ty1: &Type,
+        ty2: &Type,
+        annotation_state: AnnotationState,
+    ) -> GradualCheckResult {
         let mut errors = vec![];
         let mut warnings = vec![];
-        
+
         match self.mode {
             GradualMode::Static => {
                 // Static mode: require full annotations
@@ -267,7 +276,7 @@ impl GradualChecker {
                         kind: GradualWarningKind::MissingTypeAnnotation,
                     });
                 }
-                
+
                 // Strict type checking
                 if !self.is_compatible_static(ty1, ty2) {
                     errors.push(TypeError {
@@ -280,7 +289,7 @@ impl GradualChecker {
                     });
                 }
             }
-            
+
             GradualMode::Gradual => {
                 // Gradual mode: allow any, but warn
                 if matches!((ty1, ty2), (Type::Any, _) | (_, Type::Any)) {
@@ -300,7 +309,7 @@ impl GradualChecker {
                     });
                 }
             }
-            
+
             GradualMode::Dynamic => {
                 // Dynamic mode: only check at boundaries
                 if !self.is_compatible_dynamic(ty1, ty2) {
@@ -315,7 +324,7 @@ impl GradualChecker {
                 }
             }
         }
-        
+
         GradualCheckResult {
             is_valid: errors.is_empty(),
             errors,
@@ -323,40 +332,40 @@ impl GradualChecker {
             annotation_state,
         }
     }
-    
+
     /// Static mode compatibility
     fn is_compatible_static(&self, expected: &Type, found: &Type) -> bool {
         expected == found
     }
-    
+
     /// Gradual mode compatibility
     fn is_compatible_gradual(&self, expected: &Type, found: &Type) -> bool {
         // Allow any to be compatible with anything
         if matches!(expected, Type::Any) || matches!(found, Type::Any) {
             return true;
         }
-        
+
         // Otherwise require exact match
         expected == found
     }
-    
+
     /// Dynamic mode compatibility
     fn is_compatible_dynamic(&self, _expected: &Type, _found: &Type) -> bool {
         // In dynamic mode, everything is compatible at compile time
         // Runtime checks handle mismatches
         true
     }
-    
+
     /// Get annotation info for a file
     pub fn get_annotations(&self, file: &str) -> Option<&TypeAnnotations> {
         self.annotations.get(file)
     }
-    
+
     /// Get migration progress
     pub fn migration_progress(&self) -> MigrationProgress {
         self.migration.calculate_progress(&self.annotations)
     }
-    
+
     /// Should this code be checked strictly?
     pub fn should_check_strictly(&self, annotation_state: AnnotationState) -> bool {
         match self.mode {
@@ -374,23 +383,28 @@ impl MigrationTracker {
             progress: MigrationProgress::default(),
         }
     }
-    
-    fn calculate_progress(&self, annotations: &HashMap<String, TypeAnnotations>) -> MigrationProgress {
+
+    fn calculate_progress(
+        &self,
+        annotations: &HashMap<String, TypeAnnotations>,
+    ) -> MigrationProgress {
         let total = annotations.len();
-        let fully = annotations.values()
+        let fully = annotations
+            .values()
             .filter(|a| a.state == AnnotationState::FullyAnnotated)
             .count();
-        let partial = annotations.values()
+        let partial = annotations
+            .values()
             .filter(|a| a.state == AnnotationState::PartiallyAnnotated)
             .count();
         let untyped = total - fully - partial;
-        
+
         let percentage = if total > 0 {
             (fully as f64 + partial as f64 * 0.5) / total as f64 * 100.0
         } else {
             0.0
         };
-        
+
         MigrationProgress {
             total_files: total,
             fully_typed: fully,
@@ -411,14 +425,14 @@ impl MigrationTool {
     pub fn new(checker: GradualChecker) -> Self {
         Self { checker }
     }
-    
+
     /// Analyze code and suggest type annotations
     pub fn suggest_types(&self, content: &str) -> Vec<TypeSuggestion> {
         let mut suggestions = vec![];
-        
+
         for line in content.lines() {
             let line = line.trim();
-            
+
             // Look for untyped functions (functions without return type annotation)
             if line.starts_with("func ") {
                 if let Some(name) = extract_func_name(line) {
@@ -432,12 +446,15 @@ impl MigrationTool {
                             name: name.clone(),
                             suggested_type: ty.clone(),
                             confidence: 0.7,
-                            reason: format!("Function name '{}' suggests return type '{:?}'", name, ty),
+                            reason: format!(
+                                "Function name '{}' suggests return type '{:?}'",
+                                name, ty
+                            ),
                         });
                     }
                 }
             }
-            
+
             // Look for untyped variables
             if line.contains(":=") {
                 if let Some(name) = extract_var_name(line) {
@@ -452,14 +469,14 @@ impl MigrationTool {
                 }
             }
         }
-        
+
         suggestions
     }
-    
+
     /// Generate migration report
     pub fn generate_report(&self) -> String {
         let progress = self.checker.migration_progress();
-        
+
         format!(
             r#"# Gradual Typing Migration Report
 
@@ -500,7 +517,12 @@ fn extract_func_name(line: &str) -> Option<String> {
 }
 
 fn extract_var_name(line: &str) -> Option<String> {
-    line.split(":=").next()?.trim().split_whitespace().last().map(|s| s.to_string())
+    line.split(":=")
+        .next()?
+        .trim()
+        .split_whitespace()
+        .last()
+        .map(|s| s.to_string())
 }
 
 fn infer_return_type_from_name(name: &str) -> Option<Type> {
@@ -535,17 +557,17 @@ fn infer_type_from_name(name: &str) -> Option<Type> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_gradual_mode_strictness() {
         assert!(GradualMode::Static.strictness() > GradualMode::Gradual.strictness());
         assert!(GradualMode::Gradual.strictness() > GradualMode::Dynamic.strictness());
     }
-    
+
     #[test]
     fn test_analyze_annotations() {
         let mut checker = GradualChecker::new(GradualMode::Gradual);
-        
+
         let content = r#"
 func Annotated(x: int) -> int {
     return x + 1
@@ -555,38 +577,38 @@ func Unannotated(x) {
     return x + 1
 }
 "#;
-        
+
         let annotations = checker.analyze_annotations("test.go", content);
-        
+
         assert_eq!(annotations.state, AnnotationState::PartiallyAnnotated);
         assert_eq!(annotations.annotated.len(), 1);
         assert_eq!(annotations.unannotated.len(), 1);
     }
-    
+
     #[test]
     fn test_gradual_check_any() {
         let checker = GradualChecker::new(GradualMode::Gradual);
-        
+
         // In gradual mode, Any is compatible with anything
         let result = checker.check(&Type::Any, &Type::Int, AnnotationState::FullyAnnotated);
         assert!(result.is_valid);
         assert!(!result.warnings.is_empty()); // But should warn
     }
-    
+
     #[test]
     fn test_static_check_strict() {
         let checker = GradualChecker::new(GradualMode::Static);
-        
+
         // In static mode, require exact match
         let result = checker.check(&Type::Int, &Type::String, AnnotationState::FullyAnnotated);
         assert!(!result.is_valid);
     }
-    
+
     #[test]
     fn test_migration_suggestions() {
         let checker = GradualChecker::new(GradualMode::Gradual);
         let tool = MigrationTool::new(checker);
-        
+
         let content = r#"
 func isValid() {
     return true
@@ -595,30 +617,29 @@ func isValid() {
 count := 42
 name := "test"
 "#;
-        
+
         let suggestions = tool.suggest_types(content);
-        
+
         // Should suggest types based on names
         assert!(!suggestions.is_empty());
-        
+
         // isValid should suggest Bool
-        let valid_suggestion = suggestions.iter()
-            .find(|s| s.name == "isValid");
+        let valid_suggestion = suggestions.iter().find(|s| s.name == "isValid");
         assert!(valid_suggestion.is_some());
         assert_eq!(valid_suggestion.unwrap().suggested_type, Type::Bool);
     }
-    
+
     #[test]
     fn test_migration_progress() {
         let mut checker = GradualChecker::new(GradualMode::Gradual);
-        
+
         // Add some annotated files
         checker.analyze_annotations("a.go", "func A() -> int {}");
         checker.analyze_annotations("b.go", "func B(x) {}");
         checker.analyze_annotations("c.go", "x := 1");
-        
+
         let progress = checker.migration_progress();
-        
+
         assert_eq!(progress.total_files, 3);
         assert!(progress.percentage_complete > 0.0);
     }

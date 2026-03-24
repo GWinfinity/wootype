@@ -5,9 +5,9 @@
 use clap::Parser;
 use std::net::SocketAddr;
 use std::path::PathBuf;
-use tracing::{info, error};
+use tracing::{error, info};
 
-use wootype::daemon::{TypeDaemon, DaemonConfig};
+use wootype::daemon::{DaemonConfig, TypeDaemon};
 
 /// Wootype Daemon CLI
 #[derive(Parser)]

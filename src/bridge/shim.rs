@@ -1,16 +1,16 @@
 //! Go compiler shim
-//! 
+//!
 //! Provides compatibility layer for gopls and Go compiler integration.
 
-use super::protocol::{Request, Response, TypeCheckContext, SourcePosition};
-use crate::core::{SharedUniverse, TypeId};
+use super::protocol::{Request, Response, SourcePosition, TypeCheckContext};
 use crate::agent::AgentSession;
+use crate::core::{SharedUniverse, TypeId};
 
-use std::sync::Arc;
 use std::process::Stdio;
-use tokio::process::{Command, Child};
-use tokio::io::{AsyncBufReadExt, BufReader, AsyncWriteExt};
-use tracing::{info, error};
+use std::sync::Arc;
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::process::{Child, Command};
+use tracing::{error, info};
 
 /// Shim for Go compiler integration
 pub struct GoCompilerShim {
@@ -27,24 +27,26 @@ impl GoCompilerShim {
             go_path: "go".to_string(),
         }
     }
-    
+
     pub fn with_gopls(mut self, path: impl Into<String>) -> Self {
         self.gopls_path = Some(path.into());
         self
     }
-    
+
     pub fn with_go(mut self, path: impl Into<String>) -> Self {
         self.go_path = path.into();
         self
     }
-    
+
     /// Start gopls in stdio mode and bridge to wootype
     pub async fn start_gopls_bridge(&self) -> Result<GoplsBridge, ShimError> {
-        let gopls_path = self.gopls_path.clone()
+        let gopls_path = self
+            .gopls_path
+            .clone()
             .unwrap_or_else(|| "gopls".to_string());
-        
+
         info!("Starting gopls bridge: {}", gopls_path);
-        
+
         let mut child = Command::new(&gopls_path)
             .arg("-rpc.trace")
             .stdin(Stdio::piped())
@@ -52,33 +54,31 @@ impl GoCompilerShim {
             .stderr(Stdio::piped())
             .spawn()
             .map_err(|e| ShimError::Spawn(e))?;
-        
-        let stdin = child.stdin.take()
-            .ok_or(ShimError::NoStdin)?;
-        let stdout = child.stdout.take()
-            .ok_or(ShimError::NoStdout)?;
-        
+
+        let stdin = child.stdin.take().ok_or(ShimError::NoStdin)?;
+        let stdout = child.stdout.take().ok_or(ShimError::NoStdout)?;
+
         Ok(GoplsBridge {
             child,
             stdin,
             stdout: BufReader::new(stdout),
         })
     }
-    
+
     /// Run go build with wootype type checking
     pub async fn go_build(&self, package: &str) -> Result<BuildResult, ShimError> {
         info!("Running go build for: {}", package);
-        
+
         let output = Command::new(&self.go_path)
             .args(&["build", "-v", package])
             .output()
             .await
             .map_err(|e| ShimError::Io(e))?;
-        
+
         let success = output.status.success();
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-        
+
         Ok(BuildResult {
             success,
             stdout,
@@ -86,12 +86,12 @@ impl GoCompilerShim {
             type_errors: vec![],
         })
     }
-    
+
     /// Sync types with Go compiler
     pub async fn sync_types(&self, session: &AgentSession) -> Result<SyncResult, ShimError> {
         // Export types from session to Go format
         // This would serialize types in a format Go can understand
-        
+
         Ok(SyncResult {
             types_exported: 0,
             types_imported: 0,
@@ -116,21 +116,25 @@ impl GoplsBridge {
             Err(e) => Err(ShimError::Io(e)),
         }
     }
-    
+
     /// Send a message to gopls
     pub async fn send_message(&mut self, message: &str) -> Result<(), ShimError> {
-        self.stdin.write_all(message.as_bytes()).await
+        self.stdin
+            .write_all(message.as_bytes())
+            .await
             .map_err(|e| ShimError::Io(e))?;
-        self.stdin.write_all(b"\n").await
+        self.stdin
+            .write_all(b"\n")
+            .await
             .map_err(|e| ShimError::Io(e))?;
         Ok(())
     }
-    
+
     /// Forward LSP request to wootype for type checking
     pub async fn handle_lsp_request(&self, _request: &str) -> Result<String, ShimError> {
         // Parse LSP request, potentially use wootype for type operations
         // Then forward to gopls or respond directly
-        
+
         Ok(r#"{"jsonrpc":"2.0","id":1,"result":null}"#.to_string())
     }
 }
@@ -193,7 +197,7 @@ mod tests {
     async fn test_shim_creation() {
         let universe = Arc::new(TypeUniverse::new());
         let shim = GoCompilerShim::new(universe);
-        
+
         // Just verify it doesn't panic
         assert_eq!(shim.go_path, "go");
     }

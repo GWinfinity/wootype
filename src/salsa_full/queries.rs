@@ -1,8 +1,8 @@
 //! Salsa tracked queries for incremental type checking
 
-use std::collections::HashMap;
-use salsa::Database;
 use super::*;
+use salsa::Database;
+use std::collections::HashMap;
 
 // ============================================================================
 // Tracked structs for intermediate results
@@ -98,17 +98,56 @@ impl std::hash::Hash for Expr {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         use Expr::*;
         match self {
-            Int(i) => { 0u8.hash(state); i.hash(state); }
-            Float(f) => { 1u8.hash(state); f.hash(state); }
-            String(s) => { 2u8.hash(state); s.hash(state); }
-            Bool(b) => { 3u8.hash(state); b.hash(state); }
-            Identifier(i) => { 4u8.hash(state); i.hash(state); }
-            Call(f, args) => { 5u8.hash(state); f.hash(state); args.hash(state); }
-            Binary(l, op, r) => { 6u8.hash(state); l.hash(state); op.hash(state); r.hash(state); }
-            FieldAccess(e, field) => { 7u8.hash(state); e.hash(state); field.hash(state); }
-            Index(a, i) => { 8u8.hash(state); a.hash(state); i.hash(state); }
-            Array(a) => { 9u8.hash(state); a.hash(state); }
-            Lambda(p, b) => { 10u8.hash(state); p.hash(state); b.hash(state); }
+            Int(i) => {
+                0u8.hash(state);
+                i.hash(state);
+            }
+            Float(f) => {
+                1u8.hash(state);
+                f.hash(state);
+            }
+            String(s) => {
+                2u8.hash(state);
+                s.hash(state);
+            }
+            Bool(b) => {
+                3u8.hash(state);
+                b.hash(state);
+            }
+            Identifier(i) => {
+                4u8.hash(state);
+                i.hash(state);
+            }
+            Call(f, args) => {
+                5u8.hash(state);
+                f.hash(state);
+                args.hash(state);
+            }
+            Binary(l, op, r) => {
+                6u8.hash(state);
+                l.hash(state);
+                op.hash(state);
+                r.hash(state);
+            }
+            FieldAccess(e, field) => {
+                7u8.hash(state);
+                e.hash(state);
+                field.hash(state);
+            }
+            Index(a, i) => {
+                8u8.hash(state);
+                a.hash(state);
+                i.hash(state);
+            }
+            Array(a) => {
+                9u8.hash(state);
+                a.hash(state);
+            }
+            Lambda(p, b) => {
+                10u8.hash(state);
+                p.hash(state);
+                b.hash(state);
+            }
         }
     }
 }
@@ -129,9 +168,19 @@ impl Eq for OrderedFloat {}
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub enum BinaryOp {
-    Add, Sub, Mul, Div, Mod,
-    Eq, Ne, Lt, Le, Gt, Ge,
-    And, Or,
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Mod,
+    Eq,
+    Ne,
+    Lt,
+    Le,
+    Gt,
+    Ge,
+    And,
+    Or,
 }
 
 /// Parse error
@@ -174,16 +223,16 @@ pub enum CompletionKind {
 #[salsa::tracked]
 pub fn parse_file<'db>(db: &'db dyn salsa::Database, source: SourceFile) -> ParsedFile<'db> {
     let content = source.content(db);
-    
+
     let mut functions = vec![];
     let mut imports = vec![];
     let statements = vec![];
     let errors = vec![];
-    
+
     // Simple parsing
     for line in content.lines() {
         let line = line.trim();
-        
+
         // Parse imports
         if line.starts_with("import") {
             if let Some(path) = line.split('"').nth(1) {
@@ -193,42 +242,33 @@ pub fn parse_file<'db>(db: &'db dyn salsa::Database, source: SourceFile) -> Pars
                 });
             }
         }
-        
+
         // Parse function declarations
         if let Some(name) = extract_function_name(line) {
-            let func = Function::new(
-                db,
-                name,
-                vec![],
-                Type::Unit,
-                vec![],
-            );
+            let func = Function::new(db, name, vec![], Type::Unit, vec![]);
             functions.push(func);
         }
     }
-    
-    ParsedFile::new(
-        db,
-        source,
-        statements,
-        errors,
-        imports,
-        functions,
-    )
+
+    ParsedFile::new(db, source, statements, errors, imports, functions)
 }
 
 /// Build symbol index for a file
 #[salsa::tracked]
 pub fn file_symbols<'db>(db: &'db dyn salsa::Database, source: SourceFile) -> SymbolIndex<'db> {
     let parsed = parse_file(db, source);
-    
+
     let mut exports = Vec::new();
     let mut all_symbols = Vec::new();
-    
+
     for func in parsed.functions(db) {
         let name = func.name(db);
-        let is_exported = name.chars().next().map(|c| c.is_uppercase()).unwrap_or(false);
-        
+        let is_exported = name
+            .chars()
+            .next()
+            .map(|c| c.is_uppercase())
+            .unwrap_or(false);
+
         let symbol = Symbol {
             name: name.clone(),
             kind: SymbolKind::Function,
@@ -243,43 +283,44 @@ pub fn file_symbols<'db>(db: &'db dyn salsa::Database, source: SourceFile) -> Sy
             is_exported,
             docs: None,
         };
-        
+
         if is_exported {
             exports.push(symbol.clone());
         }
         all_symbols.push(symbol);
     }
-    
+
     SymbolIndex::new(db, source, exports, all_symbols)
 }
 
 /// Type check a file
 #[salsa::tracked]
-pub fn type_check_file<'db>(db: &'db dyn salsa::Database, source: SourceFile) -> TypeCheckResult<'db> {
+pub fn type_check_file<'db>(
+    db: &'db dyn salsa::Database,
+    source: SourceFile,
+) -> TypeCheckResult<'db> {
     let parsed = parse_file(db, source);
     let mut errors = Vec::new();
-    
+
     // Type check each function
     for func in parsed.functions(db) {
         let result = infer_function_type(db, func);
         errors.extend(result.errors(db).iter().cloned());
     }
-    
-    TypeCheckResult::new(
-        db,
-        source,
-        errors.is_empty(),
-        errors,
-    )
+
+    TypeCheckResult::new(db, source, errors.is_empty(), errors)
 }
 
 /// Infer type of a function
 #[salsa::tracked]
-pub fn infer_function_type<'db>(db: &'db dyn salsa::Database, func: Function<'db>) -> InferredType<'db> {
+pub fn infer_function_type<'db>(
+    db: &'db dyn salsa::Database,
+    func: Function<'db>,
+) -> InferredType<'db> {
     // Simple inference - in real impl would check body
     let return_type = func.return_type(db).clone();
     let errors = Vec::new();
-    
+
     InferredType::new(db, return_type, errors)
 }
 
@@ -291,21 +332,24 @@ pub fn completions_at<'db>(
     _offset: usize,
 ) -> Vec<CompletionItem<'db>> {
     let symbols = file_symbols(db, source);
-    
-    symbols.all_symbols(db)
+
+    symbols
+        .all_symbols(db)
         .iter()
-        .map(|s| CompletionItem::new(
-            db,
-            s.name.clone(),
-            match s.kind {
-                SymbolKind::Function => CompletionKind::Function,
-                SymbolKind::Variable => CompletionKind::Variable,
-                SymbolKind::Type | SymbolKind::Interface => CompletionKind::Type,
-                SymbolKind::Constant => CompletionKind::Variable,
-                SymbolKind::Module => CompletionKind::Module,
-            },
-            Some(format!("{}", s.ty)),
-        ))
+        .map(|s| {
+            CompletionItem::new(
+                db,
+                s.name.clone(),
+                match s.kind {
+                    SymbolKind::Function => CompletionKind::Function,
+                    SymbolKind::Variable => CompletionKind::Variable,
+                    SymbolKind::Type | SymbolKind::Interface => CompletionKind::Type,
+                    SymbolKind::Constant => CompletionKind::Variable,
+                    SymbolKind::Module => CompletionKind::Module,
+                },
+                Some(format!("{}", s.ty)),
+            )
+        })
         .collect()
 }
 
@@ -339,12 +383,13 @@ fn extract_function_name(line: &str) -> Option<String> {
     if !line.starts_with("func ") {
         return None;
     }
-    
+
     let rest = &line[5..];
-    
+
     // Handle methods: func (r Receiver) MethodName(...)
     if rest.starts_with('(') {
-        rest.split(')').nth(1)
+        rest.split(')')
+            .nth(1)
             .and_then(|s| s.trim().split('(').next())
             .map(|s| s.to_string())
     } else {
@@ -356,7 +401,7 @@ fn extract_function_name(line: &str) -> Option<String> {
 mod tests {
     use super::*;
     use crate::salsa_full::database::TypeDatabase;
-    
+
     #[test]
     fn test_parse_file() {
         let db = TypeDatabase::new();
@@ -366,13 +411,13 @@ mod tests {
             "package main\n\nfunc main() {}\nfunc Helper() int { return 42 }".to_string(),
             1,
         );
-        
+
         let parsed = parse_file(&db, source);
-        
+
         assert_eq!(parsed.functions(&db).len(), 2);
         assert_eq!(parsed.imports(&db).len(), 0);
     }
-    
+
     #[test]
     fn test_file_symbols() {
         let db = TypeDatabase::new();
@@ -382,14 +427,14 @@ mod tests {
             "func Test() {}\nfunc helper() {}".to_string(),
             1,
         );
-        
+
         let index = file_symbols(&db, source);
-        
+
         // Test is exported, helper is not
         assert_eq!(index.exports(&db).len(), 1);
         assert_eq!(index.all_symbols(&db).len(), 2);
     }
-    
+
     #[test]
     fn test_completions() {
         let db = TypeDatabase::new();
@@ -399,15 +444,15 @@ mod tests {
             "func Test() {}".to_string(),
             1,
         );
-        
+
         let completions = completions_at(&db, source, 0);
         assert!(!completions.is_empty());
     }
-    
+
     #[test]
     fn test_incremental_update() {
         use salsa::Setter;
-        
+
         let mut db = TypeDatabase::new();
         let source = SourceFile::new(
             &db,
@@ -415,15 +460,17 @@ mod tests {
             "func main() {}".to_string(),
             1,
         );
-        
+
         // First parse
         let parsed1 = parse_file(&db, source);
         assert_eq!(parsed1.functions(&db).len(), 1);
-        
+
         // Modify source
-        source.set_content(&mut db).to("func main() {}\nfunc foo() {}".to_string());
+        source
+            .set_content(&mut db)
+            .to("func main() {}\nfunc foo() {}".to_string());
         source.set_version(&mut db).to(2);
-        
+
         // Re-parse should pick up changes
         let parsed2 = parse_file(&db, source);
         assert_eq!(parsed2.functions(&db).len(), 2);

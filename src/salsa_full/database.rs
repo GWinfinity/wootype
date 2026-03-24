@@ -3,8 +3,8 @@
 //! This module defines the main database struct using salsa-rs macros
 //! for true incremental computation.
 
-use std::sync::Arc;
 use super::metrics::MetricsCollector;
+use std::sync::Arc;
 
 /// The main Salsa database for type checking
 #[salsa::db]
@@ -22,17 +22,17 @@ impl TypeDatabase {
             metrics: Arc::new(MetricsCollector::new()),
         }
     }
-    
+
     /// Get the metrics collector
     pub fn metrics(&self) -> &MetricsCollector {
         &self.metrics
     }
-    
+
     /// Get a snapshot of current metrics
     pub fn metrics_snapshot(&self) -> super::MetricsSnapshot {
         self.metrics.snapshot()
     }
-    
+
     /// Record a query execution (for metrics)
     pub fn record_query(&self, name: &str, duration: std::time::Duration, cached: bool) {
         self.metrics.record_query(name, duration, cached);
@@ -54,13 +54,13 @@ pub use salsa::Database;
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_database_creation() {
         let db = TypeDatabase::new();
         let _ = db.metrics();
     }
-    
+
     #[test]
     fn test_metrics_snapshot() {
         let db = TypeDatabase::new();

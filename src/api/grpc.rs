@@ -2,15 +2,15 @@
 //!
 //! Full implementation of the TypeDaemon gRPC service.
 
-use tonic::{Request, Response, Status, Streaming};
-use tokio::sync::mpsc;
-use tokio_stream::{wrappers::ReceiverStream, Stream, StreamExt};
 use std::pin::Pin;
 use std::sync::Arc;
-use tracing::{info, debug, error, warn};
+use tokio::sync::mpsc;
+use tokio_stream::{wrappers::ReceiverStream, Stream, StreamExt};
+use tonic::{Request, Response, Status, Streaming};
+use tracing::{debug, error, info, warn};
 
-use crate::core::SharedUniverse;
 use crate::agent::{AgentCoordinator, SessionId};
+use crate::core::SharedUniverse;
 
 // Include generated proto
 pub mod proto {
@@ -28,10 +28,7 @@ pub struct GrpcTypeService {
 }
 
 impl GrpcTypeService {
-    pub fn new(
-        universe: SharedUniverse,
-        coordinator: Arc<AgentCoordinator>,
-    ) -> Self {
+    pub fn new(universe: SharedUniverse, coordinator: Arc<AgentCoordinator>) -> Self {
         let inner = super::service::TypeService::new(universe.clone(), coordinator.clone());
         Self {
             inner,
@@ -85,7 +82,7 @@ impl TypeDaemon for GrpcTypeService {
         _request: Request<proto::HealthRequest>,
     ) -> Result<Response<proto::HealthResponse>, Status> {
         let stats = self.coordinator.stats();
-        
+
         let response = proto::HealthResponse {
             healthy: true,
             version: env!("CARGO_PKG_VERSION").to_string(),
@@ -107,8 +104,11 @@ impl TypeDaemon for GrpcTypeService {
         request: Request<proto::ConnectRequest>,
     ) -> Result<Response<proto::ConnectResponse>, Status> {
         let req = request.into_inner();
-        
-        info!("Agent connecting: {} (type: {})", req.agent_name, req.agent_type);
+
+        info!(
+            "Agent connecting: {} (type: {})",
+            req.agent_name, req.agent_type
+        );
 
         let inner_req = super::service::ConnectRequest {
             agent_name: req.agent_name,
@@ -145,7 +145,7 @@ impl TypeDaemon for GrpcTypeService {
         request: Request<proto::DisconnectRequest>,
     ) -> Result<Response<proto::DisconnectResponse>, Status> {
         let req = request.into_inner();
-        
+
         info!("Agent disconnecting: {}", req.session_id);
 
         // For now, just acknowledge the disconnect
@@ -163,20 +163,22 @@ impl TypeDaemon for GrpcTypeService {
         request: Request<proto::QueryTypeRequest>,
     ) -> Result<Response<proto::QueryTypeResponse>, Status> {
         let req = request.into_inner();
-        
+
         let query = match req.query {
             Some(proto::query_type_request::Query::ById(by_id)) => {
-                super::service::TypeQuery::ById { type_id: by_id.type_id }
+                super::service::TypeQuery::ById {
+                    type_id: by_id.type_id,
+                }
             }
             Some(proto::query_type_request::Query::ByName(by_name)) => {
-                super::service::TypeQuery::ByName { 
-                    package: by_name.package, 
-                    name: by_name.name 
+                super::service::TypeQuery::ByName {
+                    package: by_name.package,
+                    name: by_name.name,
                 }
             }
             Some(proto::query_type_request::Query::ByPattern(by_pattern)) => {
-                super::service::TypeQuery::Pattern { 
-                    pattern: by_pattern.pattern 
+                super::service::TypeQuery::Pattern {
+                    pattern: by_pattern.pattern,
                 }
             }
             None => return Err(Status::invalid_argument("Query is required")),
@@ -189,7 +191,8 @@ impl TypeDaemon for GrpcTypeService {
 
         match self.inner.query_types(inner_req).await {
             Ok(response) => {
-                let types: Vec<_> = response.results
+                let types: Vec<_> = response
+                    .results
                     .iter()
                     .map(|r| self.to_proto_type_info(r))
                     .collect();
@@ -222,10 +225,10 @@ impl TypeDaemon for GrpcTypeService {
         request: Request<proto::SimilarTypesRequest>,
     ) -> Result<Response<proto::QueryTypeResponse>, Status> {
         let req = request.into_inner();
-        
+
         let inner_req = super::service::TypeQueryRequest {
             session_id: req.session_id,
-            query: super::service::TypeQuery::Similar { 
+            query: super::service::TypeQuery::Similar {
                 type_id: req.type_id,
                 threshold: req.threshold,
             },
@@ -233,7 +236,8 @@ impl TypeDaemon for GrpcTypeService {
 
         match self.inner.query_types(inner_req).await {
             Ok(response) => {
-                let types: Vec<_> = response.results
+                let types: Vec<_> = response
+                    .results
                     .iter()
                     .map(|r| self.to_proto_type_info(r))
                     .collect();
@@ -254,17 +258,18 @@ impl TypeDaemon for GrpcTypeService {
         request: Request<proto::ImplementorsRequest>,
     ) -> Result<Response<proto::QueryTypeResponse>, Status> {
         let req = request.into_inner();
-        
+
         let inner_req = super::service::TypeQueryRequest {
             session_id: req.session_id,
-            query: super::service::TypeQuery::Implements { 
-                interface_id: req.interface_id 
+            query: super::service::TypeQuery::Implements {
+                interface_id: req.interface_id,
             },
         };
 
         match self.inner.query_types(inner_req).await {
             Ok(response) => {
-                let types: Vec<_> = response.results
+                let types: Vec<_> = response
+                    .results
                     .iter()
                     .map(|r| self.to_proto_type_info(r))
                     .collect();
@@ -280,7 +285,8 @@ impl TypeDaemon for GrpcTypeService {
     }
 
     /// Stream query
-    type StreamQueryStream = Pin<Box<dyn Stream<Item = Result<proto::QueryTypeResponse, Status>> + Send>>;
+    type StreamQueryStream =
+        Pin<Box<dyn Stream<Item = Result<proto::QueryTypeResponse, Status>> + Send>>;
 
     async fn stream_query(
         &self,
@@ -311,7 +317,9 @@ impl TypeDaemon for GrpcTypeService {
         });
 
         let output_stream = ReceiverStream::new(rx);
-        Ok(Response::new(Box::pin(output_stream) as Self::StreamQueryStream))
+        Ok(Response::new(
+            Box::pin(output_stream) as Self::StreamQueryStream
+        ))
     }
 
     /// Validate expression
@@ -320,7 +328,7 @@ impl TypeDaemon for GrpcTypeService {
         request: Request<proto::ValidateRequest>,
     ) -> Result<Response<proto::ValidateResponse>, Status> {
         let req = request.into_inner();
-        
+
         let inner_req = super::service::ValidateRequest {
             session_id: req.session_id,
             expression: req.expression,
@@ -338,7 +346,8 @@ impl TypeDaemon for GrpcTypeService {
 
         match self.inner.validate(inner_req).await {
             Ok(response) => {
-                let errors: Vec<_> = response.errors
+                let errors: Vec<_> = response
+                    .errors
                     .iter()
                     .map(|e| self.to_proto_error(e))
                     .collect();
@@ -365,7 +374,8 @@ impl TypeDaemon for GrpcTypeService {
     }
 
     /// Stream validate
-    type StreamValidateStream = Pin<Box<dyn Stream<Item = Result<proto::StreamValidateResponse, Status>> + Send>>;
+    type StreamValidateStream =
+        Pin<Box<dyn Stream<Item = Result<proto::StreamValidateResponse, Status>> + Send>>;
 
     async fn stream_validate(
         &self,
@@ -399,7 +409,9 @@ impl TypeDaemon for GrpcTypeService {
         });
 
         let output_stream = ReceiverStream::new(rx);
-        Ok(Response::new(Box::pin(output_stream) as Self::StreamValidateStream))
+        Ok(Response::new(
+            Box::pin(output_stream) as Self::StreamValidateStream
+        ))
     }
 
     /// Import package

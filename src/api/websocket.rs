@@ -13,11 +13,11 @@ use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{info, debug, error, warn};
+use tracing::{debug, error, info, warn};
 
-use crate::core::SharedUniverse;
-use crate::agent::AgentCoordinator;
 use super::service::TypeService;
+use crate::agent::AgentCoordinator;
+use crate::core::SharedUniverse;
 
 /// WebSocket server state
 #[derive(Clone)]
@@ -43,13 +43,13 @@ impl WebSocketServer {
             universe.clone(),
             coordinator.clone(),
         )));
-        
+
         let state = WebSocketState {
             universe,
             coordinator,
             service,
         };
-        
+
         Self {
             bind_address,
             state,
@@ -64,8 +64,11 @@ impl WebSocketServer {
             .with_state(self.state.clone());
 
         let listener = tokio::net::TcpListener::bind(&self.bind_address).await?;
-        
-        info!("🌐 WebSocket server listening on ws://{}", self.bind_address);
+
+        info!(
+            "🌐 WebSocket server listening on ws://{}",
+            self.bind_address
+        );
 
         axum::serve(listener, app).await?;
 
@@ -204,7 +207,8 @@ async fn handle_socket(socket: WebSocket, state: WebSocketState) {
                                 message: format!("Invalid request: {}", e),
                             }),
                         };
-                        let response_text = serde_json::to_string(&error_response).unwrap_or_default();
+                        let response_text =
+                            serde_json::to_string(&error_response).unwrap_or_default();
                         let _ = sender.send(Message::Text(response_text)).await;
                     }
                 }
@@ -229,20 +233,19 @@ async fn handle_socket(socket: WebSocket, state: WebSocketState) {
 
 async fn handle_request(request: WsRequest, state: &WebSocketState) -> WsResponse {
     match request {
-        WsRequest::Health => {
-            WsResponse {
-                method: "health".to_string(),
-                result: serde_json::to_value(HealthResponse {
-                    healthy: true,
-                    version: env!("CARGO_PKG_VERSION").to_string(),
-                }).ok(),
-                error: None,
-            }
-        }
+        WsRequest::Health => WsResponse {
+            method: "health".to_string(),
+            result: serde_json::to_value(HealthResponse {
+                healthy: true,
+                version: env!("CARGO_PKG_VERSION").to_string(),
+            })
+            .ok(),
+            error: None,
+        },
 
         WsRequest::Connect(req) => {
             info!("Agent connecting via WebSocket: {}", req.agent_name);
-            
+
             let inner_req = super::service::ConnectRequest {
                 agent_name: req.agent_name,
                 agent_type: req.agent_type,
@@ -250,35 +253,30 @@ async fn handle_request(request: WsRequest, state: &WebSocketState) -> WsRespons
 
             let service = state.service.read().await;
             match service.connect(inner_req).await {
-                Ok(response) => {
-                    WsResponse {
-                        method: "connect".to_string(),
-                        result: serde_json::to_value(serde_json::json!({
-                            "success": response.success,
-                            "sessionId": response.session_id,
-                            "message": response.message,
-                        })).ok(),
-                        error: None,
-                    }
-                }
-                Err(e) => {
-                    WsResponse {
-                        method: "connect".to_string(),
-                        result: None,
-                        error: Some(WsError {
-                            code: 500,
-                            message: e.to_string(),
-                        }),
-                    }
-                }
+                Ok(response) => WsResponse {
+                    method: "connect".to_string(),
+                    result: serde_json::to_value(serde_json::json!({
+                        "success": response.success,
+                        "sessionId": response.session_id,
+                        "message": response.message,
+                    }))
+                    .ok(),
+                    error: None,
+                },
+                Err(e) => WsResponse {
+                    method: "connect".to_string(),
+                    result: None,
+                    error: Some(WsError {
+                        code: 500,
+                        message: e.to_string(),
+                    }),
+                },
             }
         }
 
         WsRequest::Query(req) => {
             let query = match req.query {
-                WsQuery::ById { type_id } => {
-                    super::service::TypeQuery::ById { type_id }
-                }
+                WsQuery::ById { type_id } => super::service::TypeQuery::ById { type_id },
                 WsQuery::ByName { package, name } => {
                     super::service::TypeQuery::ByName { package, name }
                 }
@@ -294,27 +292,24 @@ async fn handle_request(request: WsRequest, state: &WebSocketState) -> WsRespons
 
             let service = state.service.read().await;
             match service.query_types(inner_req).await {
-                Ok(response) => {
-                    WsResponse {
-                        method: "query".to_string(),
-                        result: serde_json::to_value(serde_json::json!({
-                            "types": response.results,
-                            "latencyMicros": response.latency_us,
-                            "totalCount": response.results.len(),
-                        })).ok(),
-                        error: None,
-                    }
-                }
-                Err(e) => {
-                    WsResponse {
-                        method: "query".to_string(),
-                        result: None,
-                        error: Some(WsError {
-                            code: 500,
-                            message: e.to_string(),
-                        }),
-                    }
-                }
+                Ok(response) => WsResponse {
+                    method: "query".to_string(),
+                    result: serde_json::to_value(serde_json::json!({
+                        "types": response.results,
+                        "latencyMicros": response.latency_us,
+                        "totalCount": response.results.len(),
+                    }))
+                    .ok(),
+                    error: None,
+                },
+                Err(e) => WsResponse {
+                    method: "query".to_string(),
+                    result: None,
+                    error: Some(WsError {
+                        code: 500,
+                        message: e.to_string(),
+                    }),
+                },
             }
         }
 
@@ -328,28 +323,25 @@ async fn handle_request(request: WsRequest, state: &WebSocketState) -> WsRespons
 
             let service = state.service.read().await;
             match service.validate(inner_req).await {
-                Ok(response) => {
-                    WsResponse {
-                        method: "validate".to_string(),
-                        result: serde_json::to_value(serde_json::json!({
-                            "valid": response.valid,
-                            "inferredType": response.inferred_type,
-                            "errors": response.errors,
-                            "latencyMicros": response.latency_us,
-                        })).ok(),
-                        error: None,
-                    }
-                }
-                Err(e) => {
-                    WsResponse {
-                        method: "validate".to_string(),
-                        result: None,
-                        error: Some(WsError {
-                            code: 500,
-                            message: e.to_string(),
-                        }),
-                    }
-                }
+                Ok(response) => WsResponse {
+                    method: "validate".to_string(),
+                    result: serde_json::to_value(serde_json::json!({
+                        "valid": response.valid,
+                        "inferredType": response.inferred_type,
+                        "errors": response.errors,
+                        "latencyMicros": response.latency_us,
+                    }))
+                    .ok(),
+                    error: None,
+                },
+                Err(e) => WsResponse {
+                    method: "validate".to_string(),
+                    result: None,
+                    error: Some(WsError {
+                        code: 500,
+                        message: e.to_string(),
+                    }),
+                },
             }
         }
 
@@ -361,21 +353,23 @@ async fn handle_request(request: WsRequest, state: &WebSocketState) -> WsRespons
                     "token": req.token,
                     "valid": true,
                     "isFinal": req.is_complete,
-                })).ok(),
+                }))
+                .ok(),
                 error: None,
             }
         }
 
         WsRequest::Import(req) => {
             info!("Importing package via WebSocket: {}", req.package_path);
-            
+
             WsResponse {
                 method: "import".to_string(),
                 result: serde_json::to_value(serde_json::json!({
                     "success": true,
                     "packagePath": req.package_path,
                     "typesImported": 0,
-                })).ok(),
+                }))
+                .ok(),
                 error: None,
             }
         }

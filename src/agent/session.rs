@@ -1,12 +1,12 @@
 //! Agent session management
-//! 
+//!
 //! Each AI Agent gets an isolated session with its own branch.
 
+use super::branch::Branch;
+use super::rag::TypeEmbeddings;
 use crate::core::{SharedUniverse, TypeUniverse};
 use crate::query::QueryEngine;
 use crate::validate::StreamingChecker;
-use super::branch::Branch;
-use super::rag::TypeEmbeddings;
 
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -87,19 +87,19 @@ pub enum IsolationLevel {
 pub struct AgentSession {
     pub id: SessionId,
     pub config: SessionConfig,
-    
+
     // Isolated universe branch
     universe: Arc<RwLock<Branch>>,
-    
+
     // Query engine
     query_engine: QueryEngine,
-    
+
     // Streaming checker
     checker: StreamingChecker,
-    
+
     // RAG embeddings (optional)
     embeddings: Option<Arc<TypeEmbeddings>>,
-    
+
     // Session metrics
     metrics: RwLock<SessionMetrics>,
 }
@@ -115,26 +115,23 @@ pub struct SessionMetrics {
 }
 
 impl AgentSession {
-    pub async fn new(
-        base_universe: SharedUniverse,
-        config: SessionConfig,
-    ) -> Self {
+    pub async fn new(base_universe: SharedUniverse, config: SessionConfig) -> Self {
         // Create isolated branch
         let branch = Branch::new(base_universe, config.isolation_level).await;
         let branch_arc = Arc::new(RwLock::new(branch));
-        
+
         // Create query engine and checker for the branch
         let universe: crate::core::SharedUniverse = branch_arc.read().await.universe().clone();
         let query_engine = QueryEngine::new(universe.clone());
         let checker = StreamingChecker::new(universe);
-        
+
         // Initialize RAG if enabled
         let embeddings = if config.enable_rag {
             Some(Arc::new(TypeEmbeddings::new()))
         } else {
             None
         };
-        
+
         Self {
             id: SessionId::new(),
             config,
@@ -145,61 +142,66 @@ impl AgentSession {
             metrics: RwLock::new(SessionMetrics::default()),
         }
     }
-    
+
     /// Get the query engine for this session
     pub fn query_engine(&self) -> &QueryEngine {
         &self.query_engine
     }
-    
+
     /// Get the streaming checker for this session
     pub fn checker(&self) -> &StreamingChecker {
         &self.checker
     }
-    
+
     /// Get the branch (for advanced operations)
     pub fn branch(&self) -> &Arc<RwLock<Branch>> {
         &self.universe
     }
-    
+
     /// Perform semantic search if RAG is enabled
-    pub async fn semantic_search(&self, query: &str, limit: usize) -> Vec<super::rag::SearchResult> {
+    pub async fn semantic_search(
+        &self,
+        query: &str,
+        limit: usize,
+    ) -> Vec<super::rag::SearchResult> {
         if let Some(embeddings) = &self.embeddings {
             embeddings.search(query, limit).await
         } else {
             Vec::new()
         }
     }
-    
+
     /// Commit changes to parent universe
     pub async fn commit(&self) -> Result<CommitResult, CommitError> {
-        let branch: tokio::sync::RwLockReadGuard<'_, super::branch::Branch> = self.universe.read().await;
+        let branch: tokio::sync::RwLockReadGuard<'_, super::branch::Branch> =
+            self.universe.read().await;
         branch.commit().await
     }
-    
+
     /// Rollback to last checkpoint
     pub async fn rollback(&self) -> Result<(), RollbackError> {
         let mut branch = self.universe.write().await;
         branch.rollback().await
     }
-    
+
     /// Create a sub-branch (for speculative exploration)
     pub async fn fork(&self, name: impl Into<String>) -> Result<SessionId, ForkError> {
         // Would create a nested branch
         Err(ForkError::NotImplemented)
     }
-    
+
     /// Get session metrics
     pub async fn metrics(&self) -> SessionMetrics {
         self.metrics.read().await.clone()
     }
-    
+
     /// Update metrics
     pub async fn record_query(&self, latency_us: u64) {
         let mut metrics = self.metrics.write().await;
         metrics.queries_processed += 1;
         metrics.latency_us_total += latency_us;
     }
-    
+
     /// Close the session
     pub async fn close(self) -> SessionSummary {
         SessionSummary {
@@ -279,9 +281,9 @@ mod tests {
     async fn test_session_creation() {
         let universe = Arc::new(TypeUniverse::new());
         let config = SessionConfig::default();
-        
+
         let session = AgentSession::new(universe, config).await;
-        
+
         assert_eq!(session.config.name, "unnamed");
     }
 
@@ -289,7 +291,7 @@ mod tests {
     fn test_session_id() {
         let id1 = SessionId::new();
         let id2 = SessionId::new();
-        
+
         assert_ne!(id1, id2);
     }
 }

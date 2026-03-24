@@ -1,15 +1,15 @@
 //! Package importer for Go packages
-//! 
+//!
 //! Imports types from Go packages into the type universe.
 
-use crate::core::{SharedUniverse, TypeUniverse, PackageInfo, SymbolId, TypeId};
 use super::ast::GoFile;
 use super::converter::TypeConverter;
+use crate::core::{PackageInfo, SharedUniverse, SymbolId, TypeId, TypeUniverse};
 
+use dashmap::DashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use dashmap::DashMap;
-use tracing::{info, warn, error};
+use tracing::{error, info, warn};
 
 /// Package import result
 #[derive(Debug, Clone)]
@@ -66,7 +66,7 @@ impl PackageImporter {
             module_cache: Self::detect_module_cache(),
         }
     }
-    
+
     /// Detect GOPATH from environment
     fn detect_gopath() -> PathBuf {
         std::env::var("GOPATH")
@@ -76,16 +76,14 @@ impl PackageImporter {
                 home.join("go")
             })
     }
-    
+
     /// Detect module cache
     fn detect_module_cache() -> PathBuf {
         std::env::var("GOMODCACHE")
             .map(PathBuf::from)
-            .unwrap_or_else(|_| {
-                Self::detect_gopath().join("pkg/mod")
-            })
+            .unwrap_or_else(|_| Self::detect_gopath().join("pkg/mod"))
     }
-    
+
     /// Import a package by path
     pub async fn import(&self, package_path: &str) -> Result<ImportResult, ImportError> {
         // Check cache
@@ -98,20 +96,20 @@ impl PackageImporter {
                 errors: vec![],
             });
         }
-        
+
         info!("Importing package: {}", package_path);
-        
+
         // Find package location
         let pkg_dir = self.find_package_dir(package_path).await?;
-        
+
         // Parse package files
         let files = self.parse_package(&pkg_dir).await?;
-        
+
         // Convert types
         let mut types_imported = 0;
         let mut functions_imported = 0;
         let mut errors = Vec::new();
-        
+
         for file in &files {
             for decl in &file.decls {
                 match self.converter.convert_decl(decl).await {
@@ -129,36 +127,37 @@ impl PackageImporter {
                 }
             }
         }
-        
+
         // Register package
-        let exports: Vec<SymbolId> = files.iter()
+        let exports: Vec<SymbolId> = files
+            .iter()
             .flat_map(|f| f.decls.iter())
             .filter_map(|d| self.extract_exported_symbol(d))
             .collect();
-        
+
         let info = PackageInfo {
             path: package_path.into(),
-            name: files.first()
+            name: files
+                .first()
                 .map(|f| f.package.clone().into())
                 .unwrap_or_else(|| package_path.into()),
             exports,
-            imports: files.iter()
+            imports: files
+                .iter()
                 .flat_map(|f| f.imports.iter())
                 .map(|i| i.path.clone().into())
                 .collect(),
         };
-        
+
         self.universe.register_package(info.clone());
-        
+
         // Cache result
-        let imported = ImportedPackage {
-            info,
-            files,
-        };
-        self.import_cache.insert(package_path.to_string(), Arc::new(imported));
-        
+        let imported = ImportedPackage { info, files };
+        self.import_cache
+            .insert(package_path.to_string(), Arc::new(imported));
+
         info!("Imported {} types from {}", types_imported, package_path);
-        
+
         Ok(ImportResult {
             package_path: package_path.to_string(),
             types_imported,
@@ -167,7 +166,7 @@ impl PackageImporter {
             errors,
         })
     }
-    
+
     /// Find package directory
     async fn find_package_dir(&self, package_path: &str) -> Result<PathBuf, ImportError> {
         // Try module cache first
@@ -175,13 +174,13 @@ impl PackageImporter {
         if module_path.exists() {
             return Ok(module_path);
         }
-        
+
         // Try GOPATH
         let gopath_path = self.gopath.join("src").join(package_path);
         if gopath_path.exists() {
             return Ok(gopath_path);
         }
-        
+
         // Try stdlib
         let goroot = std::env::var("GOROOT").unwrap_or_default();
         if !goroot.is_empty() {
@@ -190,34 +189,29 @@ impl PackageImporter {
                 return Ok(stdlib_path);
             }
         }
-        
+
         Err(ImportError {
             kind: ImportErrorKind::NotFound,
             message: format!("Package not found: {}", package_path),
             file: None,
         })
     }
-    
+
     /// Parse all Go files in package directory
     async fn parse_package(&self, dir: &Path) -> Result<Vec<GoFile>, ImportError> {
         let mut files = Vec::new();
-        
-        let mut entries = tokio::fs::read_dir(dir)
-            .await
-            .map_err(|e| ImportError {
-                kind: ImportErrorKind::NotFound,
-                message: e.to_string(),
-                file: Some(dir.to_string_lossy().to_string()),
-            })?;
-        
-        while let Some(entry) = entries.next_entry()
-            .await
-            .map_err(|e| ImportError {
-                kind: ImportErrorKind::ParseError,
-                message: e.to_string(),
-                file: None,
-            })? 
-        {
+
+        let mut entries = tokio::fs::read_dir(dir).await.map_err(|e| ImportError {
+            kind: ImportErrorKind::NotFound,
+            message: e.to_string(),
+            file: Some(dir.to_string_lossy().to_string()),
+        })?;
+
+        while let Some(entry) = entries.next_entry().await.map_err(|e| ImportError {
+            kind: ImportErrorKind::ParseError,
+            message: e.to_string(),
+            file: None,
+        })? {
             let path = entry.path();
             if path.extension() == Some(std::ffi::OsStr::new("go")) {
                 // Skip test files in initial import
@@ -227,7 +221,7 @@ impl PackageImporter {
                         continue;
                     }
                 }
-                
+
                 match self.parse_file(&path).await {
                     Ok(file) => files.push(file),
                     Err(e) => {
@@ -236,7 +230,7 @@ impl PackageImporter {
                 }
             }
         }
-        
+
         if files.is_empty() {
             return Err(ImportError {
                 kind: ImportErrorKind::NotFound,
@@ -244,10 +238,10 @@ impl PackageImporter {
                 file: Some(dir.to_string_lossy().to_string()),
             });
         }
-        
+
         Ok(files)
     }
-    
+
     /// Parse a single Go file
     async fn parse_file(&self, path: &Path) -> Result<GoFile, ImportError> {
         let source = tokio::fs::read_to_string(path)
@@ -257,27 +251,27 @@ impl PackageImporter {
                 message: e.to_string(),
                 file: Some(path.to_string_lossy().to_string()),
             })?;
-        
+
         // Parse source
         self.parse_source(&source, path)
     }
-    
+
     /// Parse Go source code
     fn parse_source(&self, source: &str, path: &Path) -> Result<GoFile, ImportError> {
         // Simplified parsing - would use actual Go parser
         // For now, return placeholder
-        
+
         Ok(GoFile {
             package: "main".to_string(),
             imports: vec![],
             decls: vec![],
         })
     }
-    
+
     /// Extract exported symbol from declaration
     fn extract_exported_symbol(&self, decl: &super::ast::Decl) -> Option<SymbolId> {
         use super::ast::Decl;
-        
+
         match decl {
             Decl::Type(spec) if Self::is_exported(&spec.name) => {
                 Some(self.universe.symbols().intern(&spec.name))
@@ -288,39 +282,31 @@ impl PackageImporter {
             _ => None,
         }
     }
-    
+
     /// Check if identifier is exported (starts with uppercase)
     fn is_exported(name: &str) -> bool {
-        name.chars().next()
+        name.chars()
+            .next()
             .map(|c| c.is_uppercase())
             .unwrap_or(false)
     }
-    
+
     /// Get cached package
     pub fn get_cached(&self, package_path: &str) -> Option<Arc<ImportedPackage>> {
         self.import_cache.get(package_path).map(|p| p.clone())
     }
-    
+
     /// Clear cache
     pub fn clear_cache(&self) {
         self.import_cache.clear();
     }
-    
+
     /// Preload common packages
     pub async fn preload_stdlib(&self) -> Vec<ImportResult> {
         let stdlib_packages = vec![
-            "fmt",
-            "os",
-            "io",
-            "strings",
-            "bytes",
-            "time",
-            "sync",
-            "context",
-            "errors",
-            "sort",
+            "fmt", "os", "io", "strings", "bytes", "time", "sync", "context", "errors", "sort",
         ];
-        
+
         let mut results = Vec::new();
         for pkg in stdlib_packages {
             match self.import(pkg).await {
@@ -330,7 +316,7 @@ impl PackageImporter {
                 }
             }
         }
-        
+
         results
     }
 }
@@ -362,7 +348,7 @@ mod tests {
     async fn test_importer_creation() {
         let universe = Arc::new(TypeUniverse::new());
         let importer = PackageImporter::new(universe);
-        
+
         // Verify GOPATH detection
         assert!(!importer.gopath.as_os_str().is_empty());
     }

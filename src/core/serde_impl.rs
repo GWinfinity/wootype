@@ -1,6 +1,6 @@
 //! Serde serialization implementations for custom types
 
-use serde::{Serialize, Deserialize, Serializer, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::sync::Arc;
 
 /// Serialize Arc<str> as String

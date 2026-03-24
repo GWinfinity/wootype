@@ -2,9 +2,4 @@
 //!
 //! Re-exports from the main salsa module for convenience.
 
-pub use super::{
-    IncrementalDb,
-    DbStats,
-    QueryKey,
-    QueryValue,
-};
+pub use super::{DbStats, IncrementalDb, QueryKey, QueryValue};

@@ -1,26 +1,26 @@
 //! Streaming type checker for real-time validation
-//! 
+//!
 //! Validates expressions as they arrive from AI generation.
 
-use super::stream::{Expression, ExpressionId, ValidationResult, SourcePosition};
-use super::error::{ValidationError, SoftError, ErrorCollection};
-use super::infer::{TypeInference, LookaheadContext};
+use super::error::{ErrorCollection, SoftError, ValidationError};
+use super::infer::{LookaheadContext, TypeInference};
+use super::stream::{Expression, ExpressionId, SourcePosition, ValidationResult};
 use crate::core::{SharedUniverse, TypeId, TypeKind};
 use crate::query::QueryEngine;
 
-use std::sync::Arc;
-use parking_lot::RwLock;
 use im::HashMap as ImHashMap;
+use parking_lot::RwLock;
+use std::sync::Arc;
 
 /// Streaming type checker state
 pub struct StreamingChecker {
     universe: SharedUniverse,
     query_engine: QueryEngine,
     inference: TypeInference,
-    
+
     // Expression states
     states: RwLock<ImHashMap<ExpressionId, ExpressionCheckState>>,
-    
+
     // Error accumulation
     errors: RwLock<ErrorCollection>,
 }
@@ -73,11 +73,11 @@ impl StreamingChecker {
             errors: RwLock::new(ErrorCollection::new()),
         }
     }
-    
+
     /// Check a single expression
     pub fn check(&self, request: CheckRequest) -> CheckResponse {
         let start = std::time::Instant::now();
-        
+
         // Create check state
         let state = ExpressionCheckState {
             expr: request.expr.clone(),
@@ -87,16 +87,16 @@ impl StreamingChecker {
             status: CheckStatus::InProgress,
             errors: Vec::new(),
         };
-        
+
         // Store state
         {
             let mut states = self.states.write();
             *states = states.update(request.id, state.clone());
         }
-        
+
         // Perform check
         let result = self.validate_expression(&request.expr, request.expected_type);
-        
+
         // Update state with result
         {
             let mut states = self.states.write();
@@ -118,16 +118,16 @@ impl StreamingChecker {
                 *states = states.update(request.id, updated);
             }
         }
-        
+
         let latency = start.elapsed().as_micros() as u64;
-        
+
         CheckResponse {
             id: request.id,
             result,
             latency_us: latency,
         }
     }
-    
+
     /// Quick check for syntax hints (microsecond latency)
     pub fn quick_check(&self, expr: &Expression) -> QuickCheckResult {
         match expr {
@@ -136,7 +136,11 @@ impl StreamingChecker {
                 let exists = self.lookup_identifier_quick(name);
                 QuickCheckResult {
                     valid: exists,
-                    hint: if exists { None } else { Some(format!("'{}' not found", name)) },
+                    hint: if exists {
+                        None
+                    } else {
+                        Some(format!("'{}' not found", name))
+                    },
                 }
             }
             Expression::Literal(_) => QuickCheckResult::valid(),
@@ -147,22 +151,18 @@ impl StreamingChecker {
             _ => QuickCheckResult::unknown(),
         }
     }
-    
+
     fn lookup_identifier_quick(&self, name: &str) -> bool {
         self.universe.symbols().lookup(None, name).is_some()
     }
-    
+
     /// Full expression validation
-    fn validate_expression(
-        &self,
-        expr: &Expression,
-        expected: Option<TypeId>
-    ) -> ValidationResult {
+    fn validate_expression(&self, expr: &Expression, expected: Option<TypeId>) -> ValidationResult {
         let ctx = LookaheadContext::new();
-        
+
         // Infer type
         let inferred = self.inference.infer(expr, &ctx);
-        
+
         // Check against expected type
         if let (Some(exp), Some(inf)) = (expected, inferred) {
             if !self.types_compatible(inf, exp) {
@@ -174,7 +174,7 @@ impl StreamingChecker {
                 };
             }
         }
-        
+
         match inferred {
             Some(typ) => ValidationResult::Valid { typ },
             None => ValidationResult::Partial {
@@ -184,45 +184,43 @@ impl StreamingChecker {
             },
         }
     }
-    
+
     fn types_compatible(&self, a: TypeId, b: TypeId) -> bool {
         if a == b {
             return true;
         }
-        
+
         // Check assignability
         if let (Some(ta), Some(tb)) = (self.universe.get_type(a), self.universe.get_type(b)) {
             // Identical types
             if ta.identical(&tb) {
                 return true;
             }
-            
+
             // Check interface implementation
             if tb.flags.contains(crate::core::TypeFlags::INTERFACE) {
                 return self.query_engine.implements_interface(a, b);
             }
         }
-        
+
         false
     }
-    
+
     /// Check a batch of expressions
     pub fn check_batch(&self, requests: Vec<CheckRequest>) -> Vec<CheckResponse> {
-        requests.into_iter()
-            .map(|req| self.check(req))
-            .collect()
+        requests.into_iter().map(|req| self.check(req)).collect()
     }
-    
+
     /// Get expression state
     pub fn get_state(&self, id: ExpressionId) -> Option<ExpressionCheckState> {
         self.states.read().get(&id).cloned()
     }
-    
+
     /// Get all errors
     pub fn get_errors(&self) -> ErrorCollection {
         self.errors.read().clone()
     }
-    
+
     /// Clear all states
     pub fn clear(&self) {
         *self.states.write() = ImHashMap::new();
@@ -244,14 +242,14 @@ impl QuickCheckResult {
             hint: None,
         }
     }
-    
+
     pub fn invalid(hint: impl Into<String>) -> Self {
         Self {
             valid: false,
             hint: Some(hint.into()),
         }
     }
-    
+
     pub fn unknown() -> Self {
         Self {
             valid: true,
@@ -273,26 +271,26 @@ mod tests {
     #[test]
     fn test_quick_check_literal() {
         let checker = setup_checker();
-        
+
         let lit = Expression::Literal(crate::validate::stream::LiteralValue::Int(42));
         let result = checker.quick_check(&lit);
-        
+
         assert!(result.valid);
     }
-    
+
     #[test]
     fn test_check_expression() {
         let checker = setup_checker();
-        
+
         let request = CheckRequest {
             id: ExpressionId::new(1),
             expr: Expression::Literal(crate::validate::stream::LiteralValue::Int(42)),
             position: SourcePosition::default(),
             expected_type: None,
         };
-        
+
         let response = checker.check(request);
-        
+
         match response.result {
             ValidationResult::Valid { .. } | ValidationResult::Partial { .. } => {}
             _ => panic!("Expected valid or partial result"),

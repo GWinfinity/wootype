@@ -60,7 +60,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     send_request(&mut write, &connect_request).await?;
     let connect_result = receive_response(&mut read, "connect").await?;
-    
+
     let session_id = connect_result
         .get("sessionId")
         .and_then(|v| v.as_str())
@@ -100,7 +100,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Stream validation
     println!("\n🔍 Stream validation...");
     let tokens = vec!["fmt", ".", "Println", "(", "\"Hello\"", ")"];
-    
+
     for token in tokens {
         let stream_request = WsRequest {
             method: "streamValidate".to_string(),
@@ -137,7 +137,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 async fn send_request(
     write: &mut futures_util::stream::SplitSink<
-        tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
+        tokio_tungstenite::WebSocketStream<
+            tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
+        >,
         Message,
     >,
     request: &WsRequest,
@@ -149,7 +151,9 @@ async fn send_request(
 
 async fn receive_response(
     read: &mut futures_util::stream::SplitStream<
-        tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
+        tokio_tungstenite::WebSocketStream<
+            tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
+        >,
     >,
     expected_method: &str,
 ) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
@@ -157,7 +161,7 @@ async fn receive_response(
         match msg? {
             Message::Text(text) => {
                 let response: WsResponse = serde_json::from_str(&text)?;
-                
+
                 if let Some(error) = response.error {
                     println!("  Error: {}", error.message);
                     return Err(error.message.into());
@@ -171,6 +175,6 @@ async fn receive_response(
             _ => {}
         }
     }
-    
+
     Err("No response received".into())
 }

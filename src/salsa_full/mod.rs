@@ -12,33 +12,34 @@ use std::path::PathBuf;
 
 // Re-export all submodules
 pub mod database;
-pub mod inputs;
-pub mod queries;
 pub mod diagnostics;
-pub mod on_demand;
 pub mod gradual;
+pub mod inputs;
 pub mod metrics;
+pub mod on_demand;
+pub mod queries;
 
 // Re-export commonly used types from inputs
-pub use inputs::{SourceFile, FileDigest, PackageManifest, TextChange};
+pub use inputs::{FileDigest, PackageManifest, SourceFile, TextChange};
 
 // Re-export commonly used types from queries
 pub use queries::{
-    ParsedFile, Function, SymbolIndex, InferredType, TypeCheckResult,
-    CompletionItem, Interface, Statement, Expr, BinaryOp, ParseError, Import,
-    FunctionSignature, CompletionKind, OrderedFloat,
-    parse_file, file_symbols, type_check_file, infer_function_type,
-    completions_at, check_implements, resolve_symbol_at,
+    check_implements, completions_at, file_symbols, infer_function_type, parse_file,
+    resolve_symbol_at, type_check_file, BinaryOp, CompletionItem, CompletionKind, Expr, Function,
+    FunctionSignature, Import, InferredType, Interface, OrderedFloat, ParseError, ParsedFile,
+    Statement, SymbolIndex, TypeCheckResult,
 };
 
 // Re-export from database
 pub use database::TypeDatabase;
 
 // Re-export other modules
-pub use diagnostics::{RichDiagnostic, FileCache, type_error_to_diagnostic, render_diagnostic, Severity, Color};
-pub use on_demand::{WorkspaceIndex, PackageLoader, IndexStats};
+pub use diagnostics::{
+    render_diagnostic, type_error_to_diagnostic, Color, FileCache, RichDiagnostic, Severity,
+};
 pub use gradual::{GradualChecker, GradualMode, PythonInterop, RuntimeTag};
 pub use metrics::{MetricsCollector, MetricsSnapshot, PerformanceBudget, Timer};
+pub use on_demand::{IndexStats, PackageLoader, WorkspaceIndex};
 
 /// Common types used throughout the module
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -75,7 +76,9 @@ impl std::fmt::Display for Type {
             Type::Func(args, ret) => {
                 write!(f, "fn(")?;
                 for (i, arg) in args.iter().enumerate() {
-                    if i > 0 { write!(f, ", ")?; }
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
                     write!(f, "{}", arg)?;
                 }
                 write!(f, ") -> {}", ret)
@@ -87,7 +90,9 @@ impl std::fmt::Display for Type {
             Type::Tuple(elems) => {
                 write!(f, "(")?;
                 for (i, e) in elems.iter().enumerate() {
-                    if i > 0 { write!(f, ", ")?; }
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
                     write!(f, "{}", e)?;
                 }
                 write!(f, ")")
@@ -176,26 +181,29 @@ pub fn create_metrics() -> MetricsCollector {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_type_display() {
         assert_eq!(Type::Int.to_string(), "int");
         assert_eq!(Type::Array(Box::new(Type::Int)).to_string(), "[]int");
-        assert_eq!(Type::Func(vec![Type::Int, Type::Int], Box::new(Type::Bool)).to_string(), "fn(int, int) -> bool");
+        assert_eq!(
+            Type::Func(vec![Type::Int, Type::Int], Box::new(Type::Bool)).to_string(),
+            "fn(int, int) -> bool"
+        );
     }
-    
+
     #[test]
     fn test_create_database() {
         let db = create_database();
         let _ = db.metrics();
     }
-    
+
     #[test]
     fn test_end_to_end() {
         use salsa::Setter;
-        
+
         let mut db = create_database();
-        
+
         // Create a source file
         let source = SourceFile::new(
             &db,
@@ -203,23 +211,23 @@ mod tests {
             "func main() {}\nfunc Add(a int, b int) int { return a + b }".to_string(),
             1,
         );
-        
+
         // Parse it
         let parsed = parse_file(&db, source);
         assert_eq!(parsed.functions(&db).len(), 2);
-        
+
         // Get symbols
         let symbols = file_symbols(&db, source);
         assert_eq!(symbols.exports(&db).len(), 1); // Only Add is exported
-        
+
         // Type check
         let result = type_check_file(&db, source);
         assert!(result.success(&db));
-        
+
         // Modify and verify incremental behavior
         source.set_content(&mut db).to("func main() {}".to_string());
         source.set_version(&mut db).to(2);
-        
+
         let parsed2 = parse_file(&db, source);
         assert_eq!(parsed2.functions(&db).len(), 1);
     }

@@ -1,11 +1,11 @@
 //! Type service implementation for gRPC
-//! 
+//!
 //! Implements the type system service API.
 
+use crate::agent::{AgentCoordinator, AgentId, AgentType, ConnectionRequest, SessionId};
 use crate::core::{SharedUniverse, TypeId};
-use crate::query::QueryEngine;
 use crate::query::engine::{QueryResult, TypeConstraint};
-use crate::agent::{AgentCoordinator, AgentId, SessionId, AgentType, ConnectionRequest};
+use crate::query::QueryEngine;
 use crate::validate::{StreamingChecker, ValidationStream};
 
 use std::sync::Arc;
@@ -25,14 +25,13 @@ impl TypeService {
             coordinator,
         }
     }
-    
+
     /// Get query engine for a session
     fn get_query_engine(&self, session_id: SessionId) -> Option<QueryEngine> {
-        self.coordinator.get_session(session_id)
-            .map(|session| {
-                // Would get query engine from session
-                QueryEngine::new(self.universe.clone())
-            })
+        self.coordinator.get_session(session_id).map(|session| {
+            // Would get query engine from session
+            QueryEngine::new(self.universe.clone())
+        })
     }
 }
 
@@ -134,14 +133,14 @@ impl TypeService {
             "github_copilot" => AgentType::GitHubCopilot,
             _ => AgentType::Generic,
         };
-        
+
         let conn_request = ConnectionRequest {
             agent_id: AgentId::new(rand::random()),
             name: request.agent_name,
             agent_type,
             preferred_isolation: None,
         };
-        
+
         match self.coordinator.connect(conn_request).await {
             super::super::agent::coordinator::ConnectionResult::Connected { session_id } => {
                 Ok(ConnectResponse {
@@ -159,85 +158,82 @@ impl TypeService {
             }
         }
     }
-    
+
     /// Handle type query
-    pub async fn query_types(&self, request: TypeQueryRequest) -> Result<TypeQueryResponse, Status> {
+    pub async fn query_types(
+        &self,
+        request: TypeQueryRequest,
+    ) -> Result<TypeQueryResponse, Status> {
         let start = std::time::Instant::now();
-        
+
         let session_id = SessionId(
             uuid::Uuid::parse_str(&request.session_id)
-                .map_err(|_| Status::invalid_argument("Invalid session ID"))?
+                .map_err(|_| Status::invalid_argument("Invalid session ID"))?,
         );
-        
-        let query_engine = self.get_query_engine(session_id)
+
+        let query_engine = self
+            .get_query_engine(session_id)
             .ok_or_else(|| Status::not_found("Session not found"))?;
-        
+
         let results = match request.query {
-            TypeQuery::ById { type_id } => {
-                query_engine.get_type(TypeId(type_id))
-                    .into_iter()
-                    .map(|t| type_to_result(&t, 1.0))
-                    .collect()
-            }
+            TypeQuery::ById { type_id } => query_engine
+                .get_type(TypeId(type_id))
+                .into_iter()
+                .map(|t| type_to_result(&t, 1.0))
+                .collect(),
             TypeQuery::ByName { package, name } => {
                 // Would look up by symbol
                 vec![]
             }
-            TypeQuery::Similar { type_id, threshold } => {
-                query_engine.find_similar(TypeId(type_id), threshold)
-                    .into_iter()
-                    .map(|r| QueryResult {
-                        item: r.item,
-                        score: r.score,
-                        match_details: r.match_details,
-                    })
-                    .map(|r| type_to_result(
-                        &query_engine.get_type(r.item).unwrap(),
-                        r.score
-                    ))
-                    .collect()
-            }
-            TypeQuery::Implements { interface_id } => {
-                query_engine.find_implementors(TypeId(interface_id))
-                    .into_iter()
-                    .map(|r| type_to_result(
-                        &query_engine.get_type(r.item).unwrap(),
-                        r.score
-                    ))
-                    .collect()
-            }
+            TypeQuery::Similar { type_id, threshold } => query_engine
+                .find_similar(TypeId(type_id), threshold)
+                .into_iter()
+                .map(|r| QueryResult {
+                    item: r.item,
+                    score: r.score,
+                    match_details: r.match_details,
+                })
+                .map(|r| type_to_result(&query_engine.get_type(r.item).unwrap(), r.score))
+                .collect(),
+            TypeQuery::Implements { interface_id } => query_engine
+                .find_implementors(TypeId(interface_id))
+                .into_iter()
+                .map(|r| type_to_result(&query_engine.get_type(r.item).unwrap(), r.score))
+                .collect(),
             TypeQuery::Pattern { pattern: _ } => {
                 // Pattern-based search
                 vec![]
             }
         };
-        
+
         let latency = start.elapsed().as_micros() as u64;
-        
+
         Ok(TypeQueryResponse {
             results,
             latency_us: latency,
         })
     }
-    
+
     /// Handle validate request
     pub async fn validate(&self, request: ValidateRequest) -> Result<ValidateResponse, Status> {
         let start = std::time::Instant::now();
-        
+
         let session_id = SessionId(
             uuid::Uuid::parse_str(&request.session_id)
-                .map_err(|_| Status::invalid_argument("Invalid session ID"))?
+                .map_err(|_| Status::invalid_argument("Invalid session ID"))?,
         );
-        
+
         // Get session's checker
-        let session = self.coordinator.get_session(session_id)
+        let session = self
+            .coordinator
+            .get_session(session_id)
             .ok_or_else(|| Status::not_found("Session not found"))?;
-        
+
         // Parse expression and validate
         // Would use streaming checker
-        
+
         let latency = start.elapsed().as_micros() as u64;
-        
+
         Ok(ValidateResponse {
             valid: true,
             inferred_type: None,
@@ -245,7 +241,7 @@ impl TypeService {
             latency_us: latency,
         })
     }
-    
+
     /// Handle streaming validation
     pub async fn stream_validate(
         &self,
@@ -261,12 +257,12 @@ impl TypeService {
                 inferred_type: None,
                 suggestions: vec![],
             };
-            
+
             if tx.send(response).await.is_err() {
                 break;
             }
         }
-        
+
         Ok(())
     }
 }
@@ -305,12 +301,12 @@ mod tests {
     #[tokio::test]
     async fn test_connect() {
         let service = setup_service();
-        
+
         let request = ConnectRequest {
             agent_name: "Test".to_string(),
             agent_type: "cursor".to_string(),
         };
-        
+
         let response = service.connect(request).await;
         assert!(response.is_ok());
     }

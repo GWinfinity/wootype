@@ -6,11 +6,11 @@
 //! - 内联展开
 //! - 自动导入管理
 
-use std::path::{Path, PathBuf};
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 
-use super::{Position, Range, DocumentLocation};
-use crate::salsa_full::{TypeDatabase, SourceFile};
+use super::{DocumentLocation, Position, Range};
+use crate::salsa_full::{SourceFile, TypeDatabase};
 
 /// 重构引擎
 pub struct OperationEngine {
@@ -78,24 +78,22 @@ impl OperationEngine {
     /// 安全重命名
     ///
     /// 重命名符号及其所有引用
-    pub fn rename(
-        &self,
-        file: &Path,
-        position: Position,
-        new_name: &str,
-    ) -> Option<RenameResult> {
+    pub fn rename(&self, file: &Path, position: Position, new_name: &str) -> Option<RenameResult> {
         // 1. 找到光标处的符号
         // 2. 查找所有引用
         // 3. 生成编辑操作
         // 4. 验证新名称合法性
 
         let mut changes: HashMap<PathBuf, Vec<TextEdit>> = HashMap::new();
-        
+
         // 模拟：在当前文件重命名
         changes.insert(
             file.to_path_buf(),
             vec![TextEdit {
-                range: Range::new(position, Position::new(position.line, position.character + 5)),
+                range: Range::new(
+                    position,
+                    Position::new(position.line, position.character + 5),
+                ),
                 new_text: new_name.to_string(),
             }],
         );
@@ -154,11 +152,7 @@ impl OperationEngine {
     /// 内联展开
     ///
     /// 将函数调用替换为函数体
-    pub fn inline(
-        &self,
-        file: &Path,
-        position: Position,
-    ) -> Option<InlineResult> {
+    pub fn inline(&self, file: &Path, position: Position) -> Option<InlineResult> {
         // 1. 找到函数定义
         // 2. 获取函数体
         // 3. 替换调用点
@@ -169,7 +163,10 @@ impl OperationEngine {
         changes.insert(
             file.to_path_buf(),
             vec![TextEdit {
-                range: Range::new(position, Position::new(position.line, position.character + 10)),
+                range: Range::new(
+                    position,
+                    Position::new(position.line, position.character + 10),
+                ),
                 new_text: "// inlined code".to_string(),
             }],
         );
@@ -199,7 +196,7 @@ impl OperationEngine {
 
         // 模拟：整理导入
         let import_range = Range::new(Position::new(0, 0), Position::new(5, 0));
-        
+
         changes.insert(
             file.to_path_buf(),
             vec![TextEdit {
@@ -221,14 +218,19 @@ impl OperationEngine {
     /// 添加导入
     ///
     /// 为指定包添加导入语句
-    pub fn add_import(&self, file: &Path, package_path: &str, alias: Option<&str>) -> WorkspaceEdit {
+    pub fn add_import(
+        &self,
+        file: &Path,
+        package_path: &str,
+        alias: Option<&str>,
+    ) -> WorkspaceEdit {
         let import_line = match alias {
             Some(a) => format!("{} \"{}\"\n", a, package_path),
             None => format!("\"{}\"\n", package_path),
         };
 
         let mut changes: HashMap<PathBuf, Vec<TextEdit>> = HashMap::new();
-        
+
         changes.insert(
             file.to_path_buf(),
             vec![TextEdit {
@@ -252,7 +254,7 @@ impl OperationEngine {
         // 3. 生成删除操作
 
         let mut changes: HashMap<PathBuf, Vec<TextEdit>> = HashMap::new();
-        
+
         // 模拟：删除未使用的导入
         changes.insert(
             file.to_path_buf(),
@@ -415,13 +417,9 @@ mod tests {
     fn test_rename() {
         let db = TypeDatabase::new();
         let engine = OperationEngine::new(db);
-        
-        let result = engine.rename(
-            Path::new("test.go"),
-            Position::new(5, 10),
-            "newName",
-        );
-        
+
+        let result = engine.rename(Path::new("test.go"), Position::new(5, 10), "newName");
+
         assert!(result.is_some());
         let result = result.unwrap();
         assert_eq!(result.affected_files, 1);
@@ -431,13 +429,13 @@ mod tests {
     fn test_extract_function() {
         let db = TypeDatabase::new();
         let engine = OperationEngine::new(db);
-        
+
         let result = engine.extract_function(
             Path::new("test.go"),
             Range::new(Position::new(5, 0), Position::new(10, 10)),
             "helper",
         );
-        
+
         assert!(result.is_some());
     }
 
@@ -445,7 +443,7 @@ mod tests {
     fn test_organize_imports() {
         let db = TypeDatabase::new();
         let engine = OperationEngine::new(db);
-        
+
         let result = engine.organize_imports(Path::new("test.go"));
         assert!(!result.added.is_empty() || !result.removed.is_empty());
     }

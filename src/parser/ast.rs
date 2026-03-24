@@ -1,8 +1,8 @@
 //! Go AST representation
-//! 
+//!
 //! Simplified AST for type extraction.
 
-use crate::core::{TypeId, SymbolId};
+use crate::core::{SymbolId, TypeId};
 use std::sync::Arc;
 
 /// Go source file AST
@@ -83,16 +83,34 @@ pub struct Field {
 #[derive(Debug, Clone)]
 pub enum TypeExpr {
     Ident(String),
-    Selector { pkg: String, name: String },
+    Selector {
+        pkg: String,
+        name: String,
+    },
     Pointer(Box<TypeExpr>),
     Slice(Box<TypeExpr>),
-    Array { len: Option<Box<Expr>>, elem: Box<TypeExpr> },
-    Map { key: Box<TypeExpr>, value: Box<TypeExpr> },
-    Chan { dir: ChanDir, elem: Box<TypeExpr> },
-    Func { params: Vec<Field>, results: Vec<Field> },
+    Array {
+        len: Option<Box<Expr>>,
+        elem: Box<TypeExpr>,
+    },
+    Map {
+        key: Box<TypeExpr>,
+        value: Box<TypeExpr>,
+    },
+    Chan {
+        dir: ChanDir,
+        elem: Box<TypeExpr>,
+    },
+    Func {
+        params: Vec<Field>,
+        results: Vec<Field>,
+    },
     Struct(Vec<Field>),
     Interface(Vec<InterfaceElem>),
-    Generic { base: Box<TypeExpr>, args: Vec<TypeExpr> },
+    Generic {
+        base: Box<TypeExpr>,
+        args: Vec<TypeExpr>,
+    },
     Tuple(Vec<TypeExpr>),
 }
 
@@ -133,15 +151,46 @@ pub enum TypeElem {
 pub enum Expr {
     Ident(String),
     BasicLit(BasicLit),
-    CompositeLit { typ: Box<TypeExpr>, elems: Vec<KeyValue> },
-    Selector { x: Box<Expr>, sel: String },
-    Index { x: Box<Expr>, index: Box<Expr> },
-    Slice { x: Box<Expr>, low: Option<Box<Expr>>, high: Option<Box<Expr>>, max: Option<Box<Expr>> },
-    TypeAssert { x: Box<Expr>, typ: TypeExpr },
-    Call { func: Box<Expr>, args: Vec<Expr>, variadic: bool },
-    Unary { op: UnaryOp, x: Box<Expr> },
-    Binary { op: BinaryOp, x: Box<Expr>, y: Box<Expr> },
-    FuncLit { typ: TypeExpr, body: BlockStmt },
+    CompositeLit {
+        typ: Box<TypeExpr>,
+        elems: Vec<KeyValue>,
+    },
+    Selector {
+        x: Box<Expr>,
+        sel: String,
+    },
+    Index {
+        x: Box<Expr>,
+        index: Box<Expr>,
+    },
+    Slice {
+        x: Box<Expr>,
+        low: Option<Box<Expr>>,
+        high: Option<Box<Expr>>,
+        max: Option<Box<Expr>>,
+    },
+    TypeAssert {
+        x: Box<Expr>,
+        typ: TypeExpr,
+    },
+    Call {
+        func: Box<Expr>,
+        args: Vec<Expr>,
+        variadic: bool,
+    },
+    Unary {
+        op: UnaryOp,
+        x: Box<Expr>,
+    },
+    Binary {
+        op: BinaryOp,
+        x: Box<Expr>,
+        y: Box<Expr>,
+    },
+    FuncLit {
+        typ: TypeExpr,
+        body: BlockStmt,
+    },
 }
 
 /// Basic literal
@@ -157,16 +206,37 @@ pub enum BasicLit {
 /// Unary operator
 #[derive(Debug, Clone, Copy)]
 pub enum UnaryOp {
-    Add, Sub, Not, Xor, Mul, And, Arrow, // <-
+    Add,
+    Sub,
+    Not,
+    Xor,
+    Mul,
+    And,
+    Arrow, // <-
 }
 
 /// Binary operator
 #[derive(Debug, Clone, Copy)]
 pub enum BinaryOp {
-    Add, Sub, Mul, Div, Rem,
-    And, Or, Xor, Shl, Shr, AndNot,
-    Eq, Ne, Lt, Le, Gt, Ge,
-    Land, Lor, // && ||
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Rem,
+    And,
+    Or,
+    Xor,
+    Shl,
+    Shr,
+    AndNot,
+    Eq,
+    Ne,
+    Lt,
+    Le,
+    Gt,
+    Ge,
+    Land,
+    Lor, // && ||
 }
 
 /// Key-value pair
@@ -186,29 +256,74 @@ pub struct BlockStmt {
 #[derive(Debug, Clone)]
 pub enum Stmt {
     Decl(Decl),
-    Labeled { label: String, stmt: Box<Stmt> },
+    Labeled {
+        label: String,
+        stmt: Box<Stmt>,
+    },
     Expr(Expr),
-    Send { chan: Expr, value: Expr },
-    IncDec { x: Expr, inc: bool },
-    Assign { lhs: Vec<Expr>, rhs: Vec<Expr>, op: Option<AssignOp> },
+    Send {
+        chan: Expr,
+        value: Expr,
+    },
+    IncDec {
+        x: Expr,
+        inc: bool,
+    },
+    Assign {
+        lhs: Vec<Expr>,
+        rhs: Vec<Expr>,
+        op: Option<AssignOp>,
+    },
     Go(Expr),
     Defer(Expr),
     Return(Vec<Expr>),
-    Branch { op: BranchOp, label: Option<String> },
+    Branch {
+        op: BranchOp,
+        label: Option<String>,
+    },
     Block(BlockStmt),
-    If { cond: Expr, body: BlockStmt, else_: Option<Box<Stmt>> },
-    Switch { tag: Option<Expr>, body: BlockStmt },
-    TypeSwitch { assign: Box<Stmt>, body: BlockStmt },
+    If {
+        cond: Expr,
+        body: BlockStmt,
+        else_: Option<Box<Stmt>>,
+    },
+    Switch {
+        tag: Option<Expr>,
+        body: BlockStmt,
+    },
+    TypeSwitch {
+        assign: Box<Stmt>,
+        body: BlockStmt,
+    },
     Select(Vec<CommClause>),
-    For { init: Option<Box<Stmt>>, cond: Option<Expr>, post: Option<Box<Stmt>>, body: BlockStmt },
-    Range { key: Option<Expr>, value: Option<Expr>, range: Expr, body: BlockStmt },
+    For {
+        init: Option<Box<Stmt>>,
+        cond: Option<Expr>,
+        post: Option<Box<Stmt>>,
+        body: BlockStmt,
+    },
+    Range {
+        key: Option<Expr>,
+        value: Option<Expr>,
+        range: Expr,
+        body: BlockStmt,
+    },
 }
 
 /// Assignment operator
 #[derive(Debug, Clone, Copy)]
 pub enum AssignOp {
-    Add, Sub, Mul, Div, Rem,
-    And, Or, Xor, Shl, Shr, AndNot,
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Rem,
+    And,
+    Or,
+    Xor,
+    Shl,
+    Shr,
+    AndNot,
 }
 
 /// Branch operation
@@ -236,15 +351,15 @@ impl GoAst {
     pub fn new() -> Self {
         Self { files: Vec::new() }
     }
-    
+
     pub fn add_file(&mut self, file: GoFile) {
         self.files.push(file);
     }
-    
+
     pub fn files(&self) -> &[GoFile] {
         &self.files
     }
-    
+
     /// Extract all type declarations
     pub fn extract_types(&self) -> Vec<&TypeSpec> {
         let mut types = Vec::new();
@@ -257,7 +372,7 @@ impl GoAst {
         }
         types
     }
-    
+
     /// Extract all function declarations
     pub fn extract_funcs(&self) -> Vec<&FuncDecl> {
         let mut funcs = Vec::new();
@@ -285,13 +400,13 @@ mod tests {
     #[test]
     fn test_ast_creation() {
         let mut ast = GoAst::new();
-        
+
         let file = GoFile {
             package: "main".to_string(),
             imports: vec![],
             decls: vec![],
         };
-        
+
         ast.add_file(file);
         assert_eq!(ast.files().len(), 1);
     }

@@ -1,9 +1,9 @@
 //! Protocol for Go compiler IPC communication
-//! 
+//!
 //! Defines message types for hybrid mode interaction.
 
-use crate::core::{TypeId, Type};
-use serde::{Serialize, Deserialize};
+use crate::core::{Type, TypeId};
+use serde::{Deserialize, Serialize};
 
 /// Protocol message
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -19,38 +19,38 @@ pub enum Message {
 pub enum Request {
     /// Query type by ID
     GetType { type_id: TypeId },
-    
+
     /// Query type by name
     GetTypeByName { package: String, name: String },
-    
+
     /// Check if type implements interface
-    CheckImplementation { 
-        concrete_type: TypeId, 
-        interface_type: TypeId 
+    CheckImplementation {
+        concrete_type: TypeId,
+        interface_type: TypeId,
     },
-    
+
     /// Get assignability
     CheckAssignable { from: TypeId, to: TypeId },
-    
+
     /// Type-check expression
     TypeCheckExpression {
         expr: String,
         context: TypeCheckContext,
     },
-    
+
     /// Get completions
     GetCompletions {
         prefix: String,
         position: SourcePosition,
         file: String,
     },
-    
+
     /// Import package types
     ImportPackage { path: String },
-    
+
     /// Export type to Go
     ExportType { typ: Type },
-    
+
     /// Sync request
     Sync { checkpoint: u64 },
 }
@@ -144,16 +144,16 @@ pub struct ExportResult {
 pub enum Notification {
     /// Types updated
     TypesChanged { type_ids: Vec<TypeId> },
-    
+
     /// New package imported
     PackageImported { path: String },
-    
+
     /// Compilation started
     CompilationStarted,
-    
+
     /// Compilation finished
     CompilationFinished { success: bool },
-    
+
     /// Error notification
     Error { message: String },
 }
@@ -185,11 +185,11 @@ impl MessageHeader {
             payload_len,
         }
     }
-    
+
     pub fn encode(&self) -> Vec<u8> {
         bincode::serialize(self).unwrap_or_default()
     }
-    
+
     pub fn decode(data: &[u8]) -> Option<Self> {
         bincode::deserialize(data).ok()
     }
@@ -211,10 +211,12 @@ mod tests {
 
     #[test]
     fn test_message_serialization() {
-        let msg = Message::Request(Request::GetType { type_id: TypeId(42) });
+        let msg = Message::Request(Request::GetType {
+            type_id: TypeId(42),
+        });
         let bytes = serialize_message(&msg);
         let decoded = deserialize_message(&bytes);
-        
+
         assert!(decoded.is_some());
     }
 
@@ -223,7 +225,7 @@ mod tests {
         let header = MessageHeader::new(MessageType::Request, 100);
         let bytes = header.encode();
         let decoded = MessageHeader::decode(&bytes);
-        
+
         assert!(decoded.is_some());
         assert_eq!(decoded.unwrap().payload_len, 100);
     }

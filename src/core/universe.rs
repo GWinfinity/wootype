@@ -1,20 +1,20 @@
 //! TypeUniverse - The central type system orchestrator
-//! 
+//!
 //! Implements the zero-latency type query architecture with:
 //! - ECS-based type storage
 //! - Lock-free concurrent indexing
 //! - Speculative transaction support for AI Agents
 
-use super::entity::{Entity, EntityId, EntityGenerator, Generation};
-use super::storage::{ArchetypeStorage, ArchetypeId, TypeNode, TypeNodeStorage};
-use super::symbol::{SymbolId, SymbolTable, Scope};
-use super::types::{Type, TypeId, TypeKind, TypeFingerprint, PrimitiveType};
+use super::entity::{Entity, EntityGenerator, EntityId, Generation};
+use super::storage::{ArchetypeId, ArchetypeStorage, TypeNode, TypeNodeStorage};
+use super::symbol::{Scope, SymbolId, SymbolTable};
+use super::types::{PrimitiveType, Type, TypeFingerprint, TypeId, TypeKind};
 
 use dashmap::DashMap;
-use scc::HashMap as SccHashMap;
-use parking_lot::{RwLock, Mutex};
-use std::sync::Arc;
 use im::HashMap as ImHashMap;
+use parking_lot::{Mutex, RwLock};
+use scc::HashMap as SccHashMap;
+use std::sync::Arc;
 
 /// A snapshot of the type universe for speculative checking
 #[derive(Debug, Clone)]
@@ -56,11 +56,11 @@ impl SpeculativeTransaction {
             modifications: Vec::new(),
         }
     }
-    
+
     pub fn insert_type(&mut self, id: TypeId, typ: Type) {
         self.modifications.push(TransactionOp::InsertType(id, typ));
     }
-    
+
     pub fn get_type(&self, id: TypeId) -> Option<&Type> {
         // Check modifications first
         for op in self.modifications.iter().rev() {
@@ -73,11 +73,11 @@ impl SpeculativeTransaction {
         // Fall back to snapshot
         self.snapshot.types.get(&id)
     }
-    
+
     pub fn commit(self) -> Vec<TransactionOp> {
         self.modifications
     }
-    
+
     pub fn rollback(self) -> UniverseSnapshot {
         self.snapshot
     }
@@ -87,28 +87,28 @@ impl SpeculativeTransaction {
 pub struct TypeUniverse {
     // Entity generation
     entity_gen: EntityGenerator,
-    
+
     // ECS storage for type nodes (archetype-based)
     nodes: TypeNodeStorage,
-    
+
     // Fast type lookup by ID
     types: SccHashMap<TypeId, Arc<Type>>,
-    
+
     // Index: Symbol -> Entity for O(1) resolution
     symbol_index: DashMap<SymbolId, Entity>,
-    
+
     // Index: Type fingerprint -> TypeId for similarity search
     fingerprint_index: DashMap<TypeFingerprint, Vec<TypeId>>,
-    
+
     // Symbol table for interning
     symbols: Arc<SymbolTable>,
-    
+
     // Scope stack for current context
     scope_stack: RwLock<Vec<Scope>>,
-    
+
     // Package registry
     packages: DashMap<Arc<str>, PackageInfo>,
-    
+
     // Transaction management
     active_transactions: Mutex<Vec<SpeculativeTransaction>>,
 }
@@ -141,13 +141,13 @@ impl TypeUniverse {
             packages: DashMap::new(),
             active_transactions: Mutex::new(Vec::new()),
         };
-        
+
         // Bootstrap primitive types
         universe.bootstrap_primitives();
-        
+
         universe
     }
-    
+
     /// Bootstrap all Go primitive types
     fn bootstrap_primitives(&self) {
         let primitives = [
@@ -170,51 +170,50 @@ impl TypeUniverse {
             PrimitiveType::String,
             PrimitiveType::UnsafePointer,
         ];
-        
+
         for (idx, prim) in primitives.iter().enumerate() {
             let type_id = TypeId((idx + 1) as u64);
             let entity = self.create_entity();
             let kind = TypeKind::Primitive(*prim);
             let typ = Type::new(type_id, kind);
-            
+
             self.insert_type(type_id, Arc::new(typ));
-            self.symbol_index.insert(
-                self.symbols.intern(prim.as_str()),
-                entity
-            );
+            self.symbol_index
+                .insert(self.symbols.intern(prim.as_str()), entity);
         }
     }
-    
+
     /// Create a new entity
     pub fn create_entity(&self) -> Entity {
         let id = self.entity_gen.generate();
         Entity::new(id.as_u64(), 0).unwrap()
     }
-    
+
     /// Insert a type into the universe
     pub fn insert_type(&self, id: TypeId, typ: Arc<Type>) {
         let fingerprint = typ.fingerprint;
-        
+
         self.types.insert(id, typ).ok();
-        
+
         // Index by fingerprint for similarity search
         self.fingerprint_index
             .entry(fingerprint)
             .or_default()
             .push(id);
     }
-    
+
     /// Get type by ID - O(1) lookup
     pub fn get_type(&self, id: TypeId) -> Option<Arc<Type>> {
         self.types.read(&id, |_, v| v.clone())
     }
-    
+
     /// Look up type by symbol - uses symbol index
     pub fn lookup_by_symbol(&self, symbol: SymbolId) -> Option<Arc<Type>> {
-        self.symbol_index.get(&symbol)
+        self.symbol_index
+            .get(&symbol)
             .and_then(|e| self.find_type_for_entity(*e))
     }
-    
+
     /// Find type associated with an entity
     fn find_type_for_entity(&self, _entity: Entity) -> Option<Arc<Type>> {
         // Search through types for one that matches this entity
@@ -222,7 +221,7 @@ impl TypeUniverse {
         // Simplified - in practice we'd store entity reference in Type
         None
     }
-    
+
     /// Find types with similar fingerprint (SIMD-accelerated candidate selection)
     pub fn find_similar_types(&self, fingerprint: TypeFingerprint) -> Vec<TypeId> {
         self.fingerprint_index
@@ -230,13 +229,13 @@ impl TypeUniverse {
             .map(|v| v.clone())
             .unwrap_or_default()
     }
-    
+
     /// Begin a speculative transaction for AI code generation
     pub fn begin_transaction(&self) -> SpeculativeTransaction {
         let snapshot = self.create_snapshot();
         SpeculativeTransaction::new(snapshot)
     }
-    
+
     /// Create snapshot of current state
     fn create_snapshot(&self) -> UniverseSnapshot {
         // Simplified - would properly copy all types
@@ -246,7 +245,7 @@ impl TypeUniverse {
             symbols: ImHashMap::new(),
         }
     }
-    
+
     /// Commit a speculative transaction
     pub fn commit_transaction(&self, tx: SpeculativeTransaction) {
         for op in tx.commit() {
@@ -264,18 +263,18 @@ impl TypeUniverse {
             }
         }
     }
-    
+
     /// Get the symbol table
     pub fn symbols(&self) -> &SymbolTable {
         &self.symbols
     }
-    
+
     /// Push a new scope
     pub fn push_scope(&self) {
         let current = self.current_scope();
         self.scope_stack.write().push(Scope::with_parent(current));
     }
-    
+
     /// Pop current scope
     pub fn pop_scope(&self) -> Option<Scope> {
         let mut stack = self.scope_stack.write();
@@ -285,27 +284,27 @@ impl TypeUniverse {
             None
         }
     }
-    
+
     /// Get current scope
     pub fn current_scope(&self) -> Scope {
         self.scope_stack.read().last().cloned().unwrap_or_default()
     }
-    
+
     /// Register a package
     pub fn register_package(&self, info: PackageInfo) {
         self.packages.insert(info.path.clone(), info);
     }
-    
+
     /// Get package info
     pub fn get_package(&self, path: &str) -> Option<PackageInfo> {
         self.packages.get(path).map(|p| p.clone())
     }
-    
+
     /// Entity count
     pub fn entity_count(&self) -> usize {
         self.nodes.entity_count()
     }
-    
+
     /// Type count
     pub fn type_count(&self) -> usize {
         self.types.len()
@@ -324,35 +323,35 @@ mod tests {
         let universe = TypeUniverse::new();
         assert!(universe.type_count() > 0); // Has primitives
     }
-    
+
     #[test]
     fn test_type_lookup() {
         let universe = TypeUniverse::new();
-        
+
         // Primitive types should be bootstrapped - symbols may not be registered in simplified impl
         let _int_sym = universe.symbols().lookup(None, "int");
         // Test passes if no panic occurs
     }
-    
+
     #[test]
     fn test_speculative_transaction() {
         let universe = TypeUniverse::new();
         let mut tx = universe.begin_transaction();
-        
+
         let new_type_id = TypeId(1000);
         let new_type = Type::new(new_type_id, TypeKind::Primitive(PrimitiveType::Int));
-        
+
         tx.insert_type(new_type_id, new_type.clone());
-        
+
         // Transaction should see its own changes
         assert!(tx.get_type(new_type_id).is_some());
-        
+
         // Main universe should not see them yet
         assert!(universe.get_type(new_type_id).is_none());
-        
+
         // Commit transaction
         universe.commit_transaction(tx);
-        
+
         // Now main universe should see the type
         assert!(universe.get_type(new_type_id).is_some());
     }

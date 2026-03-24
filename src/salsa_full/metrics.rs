@@ -53,22 +53,24 @@ impl MetricsCollector {
             active_operations: Arc::new(Mutex::new(vec![])),
         }
     }
-    
+
     /// Record a query execution
     pub fn record_query(&self, name: &str, duration: Duration, cached: bool) {
         let mut stats = self.query_stats.lock();
-        let entry = stats.entry(name.to_string()).or_insert_with(|| QueryMetrics {
-            name: name.to_string(),
-            min_time: duration,
-            max_time: duration,
-            ..Default::default()
-        });
-        
+        let entry = stats
+            .entry(name.to_string())
+            .or_insert_with(|| QueryMetrics {
+                name: name.to_string(),
+                min_time: duration,
+                max_time: duration,
+                ..Default::default()
+            });
+
         entry.total_calls += 1;
         entry.total_time += duration;
         entry.min_time = entry.min_time.min(duration);
         entry.max_time = entry.max_time.max(duration);
-        
+
         if cached {
             entry.cached_calls += 1;
             self.cache_hits.fetch_add(1, Ordering::Relaxed);
@@ -76,34 +78,36 @@ impl MetricsCollector {
             self.cache_misses.fetch_add(1, Ordering::Relaxed);
         }
     }
-    
+
     /// Record cache hit
     pub fn record_cache_hit(&self) {
         self.cache_hits.fetch_add(1, Ordering::Relaxed);
     }
-    
+
     /// Record cache miss
     pub fn record_cache_miss(&self) {
         self.cache_misses.fetch_add(1, Ordering::Relaxed);
     }
-    
+
     /// Update memory usage
     pub fn update_memory_usage(&self, bytes: u64) {
         self.memory_usage.store(bytes, Ordering::Relaxed);
     }
-    
+
     /// Add to memory usage
     pub fn add_memory(&self, bytes: u64) {
         self.memory_usage.fetch_add(bytes, Ordering::Relaxed);
     }
-    
+
     /// Subtract from memory usage
     pub fn subtract_memory(&self, bytes: u64) {
-        let _ = self.memory_usage.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
-            Some(current.saturating_sub(bytes))
-        });
+        let _ = self
+            .memory_usage
+            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
+                Some(current.saturating_sub(bytes))
+            });
     }
-    
+
     /// Start tracking an operation
     pub fn start_operation(&self, name: &str) -> OperationGuard {
         let span_id = rand::random();
@@ -112,15 +116,15 @@ impl MetricsCollector {
             started_at: Instant::now(),
             span_id,
         };
-        
+
         self.active_operations.lock().push(operation);
-        
+
         OperationGuard {
             collector: self.clone(),
             span_id,
         }
     }
-    
+
     /// Get all metrics as a snapshot
     pub fn snapshot(&self) -> MetricsSnapshot {
         let query_stats = self.query_stats.lock().clone();
@@ -128,10 +132,10 @@ impl MetricsCollector {
         let cache_misses = self.cache_misses.load(Ordering::Relaxed);
         let memory_usage = self.memory_usage.load(Ordering::Relaxed);
         let active_ops = self.active_operations.lock().clone();
-        
+
         let total_queries: u64 = query_stats.values().map(|m| m.total_calls).sum();
         let total_time: Duration = query_stats.values().map(|m| m.total_time).sum();
-        
+
         MetricsSnapshot {
             query_stats,
             cache_hits,
@@ -148,7 +152,7 @@ impl MetricsCollector {
             active_operations: active_ops,
         }
     }
-    
+
     /// Reset all metrics
     pub fn reset(&self) {
         self.query_stats.lock().clear();
@@ -157,27 +161,42 @@ impl MetricsCollector {
         self.memory_usage.store(0, Ordering::Relaxed);
         self.active_operations.lock().clear();
     }
-    
+
     /// Print formatted report
     pub fn print_report(&self) {
         let snapshot = self.snapshot();
-        
+
         println!("╔══════════════════════════════════════════════════════════════╗");
         println!("║                   WOOTYPE METRICS REPORT                     ║");
         println!("╠══════════════════════════════════════════════════════════════╣");
-        println!("║ Memory Usage:     {:>10.2} MB                              ║", snapshot.memory_usage_mb);
-        println!("║ Cache Hit Rate:   {:>10.1}%                                ║", snapshot.cache_hit_rate * 100.0);
-        println!("║ Total Queries:    {:>10}                                  ║", snapshot.total_queries);
-        println!("║ Active Operations: {:>10}                                  ║", snapshot.active_operations.len());
+        println!(
+            "║ Memory Usage:     {:>10.2} MB                              ║",
+            snapshot.memory_usage_mb
+        );
+        println!(
+            "║ Cache Hit Rate:   {:>10.1}%                                ║",
+            snapshot.cache_hit_rate * 100.0
+        );
+        println!(
+            "║ Total Queries:    {:>10}                                  ║",
+            snapshot.total_queries
+        );
+        println!(
+            "║ Active Operations: {:>10}                                  ║",
+            snapshot.active_operations.len()
+        );
         println!("╚══════════════════════════════════════════════════════════════╝");
-        
+
         println!("\nQuery Performance:");
-        println!("{:<30} {:>10} {:>12} {:>12} {:>12}", "Query", "Calls", "Avg(ms)", "Min(ms)", "Max(ms)");
+        println!(
+            "{:<30} {:>10} {:>12} {:>12} {:>12}",
+            "Query", "Calls", "Avg(ms)", "Min(ms)", "Max(ms)"
+        );
         println!("{}", "─".repeat(80));
-        
+
         let mut sorted_stats: Vec<_> = snapshot.query_stats.values().collect();
         sorted_stats.sort_by(|a, b| b.total_time.cmp(&a.total_time));
-        
+
         for stat in sorted_stats {
             let avg = stat.total_time.as_millis() as f64 / stat.total_calls.max(1) as f64;
             let min = stat.min_time.as_millis();
@@ -229,18 +248,22 @@ impl MetricsSnapshot {
     /// Export as JSON
     pub fn to_json(&self) -> serde_json::Value {
         use serde_json::json;
-        
-        let query_stats: Vec<_> = self.query_stats.values().map(|s| {
-            json!({
-                "name": s.name,
-                "total_calls": s.total_calls,
-                "avg_time_ms": s.total_time.as_millis() as f64 / s.total_calls.max(1) as f64,
-                "min_time_ms": s.min_time.as_millis(),
-                "max_time_ms": s.max_time.as_millis(),
-                "cached_calls": s.cached_calls,
+
+        let query_stats: Vec<_> = self
+            .query_stats
+            .values()
+            .map(|s| {
+                json!({
+                    "name": s.name,
+                    "total_calls": s.total_calls,
+                    "avg_time_ms": s.total_time.as_millis() as f64 / s.total_calls.max(1) as f64,
+                    "min_time_ms": s.min_time.as_millis(),
+                    "max_time_ms": s.max_time.as_millis(),
+                    "cached_calls": s.cached_calls,
+                })
             })
-        }).collect();
-        
+            .collect();
+
         json!({
             "cache_hit_rate": self.cache_hit_rate,
             "cache_hits": self.cache_hits,
@@ -269,7 +292,7 @@ impl Timer {
             collector: None,
         }
     }
-    
+
     pub fn with_collector(name: &str, collector: &MetricsCollector) -> Self {
         Self {
             start: Instant::now(),
@@ -277,18 +300,18 @@ impl Timer {
             collector: Some(collector.clone()),
         }
     }
-    
+
     pub fn elapsed(&self) -> Duration {
         self.start.elapsed()
     }
-    
+
     pub fn stop(self) -> Duration {
         let duration = self.start.elapsed();
-        
+
         if let Some(ref collector) = self.collector {
             collector.record_query(&self.name, duration, false);
         }
-        
+
         duration
     }
 }
@@ -317,23 +340,25 @@ impl PerformanceBudget {
             warning_threshold: 0.8,
         }
     }
-    
+
     /// Check if metrics are within budget
     pub fn check(&self, metrics: &MetricsSnapshot) -> BudgetStatus {
         let mut warnings = vec![];
         let mut violations = vec![];
-        
+
         // Check query times
         for (name, stat) in &metrics.query_stats {
             let avg_time = stat.total_time / stat.total_calls.max(1) as u32;
-            
+
             if avg_time > self.max_query_time {
                 violations.push(BudgetViolation::QueryTooSlow {
                     query: name.clone(),
                     avg_time,
                     max_time: self.max_query_time,
                 });
-            } else if avg_time.as_secs_f64() > self.max_query_time.as_secs_f64() * self.warning_threshold {
+            } else if avg_time.as_secs_f64()
+                > self.max_query_time.as_secs_f64() * self.warning_threshold
+            {
                 warnings.push(BudgetWarning::QuerySlow {
                     query: name.clone(),
                     avg_time,
@@ -341,28 +366,33 @@ impl PerformanceBudget {
                 });
             }
         }
-        
+
         // Check memory
         if metrics.memory_usage_bytes > self.max_memory {
             violations.push(BudgetViolation::MemoryExceeded {
                 used: metrics.memory_usage_bytes,
                 limit: self.max_memory,
             });
-        } else if (metrics.memory_usage_bytes as f64) > (self.max_memory as f64 * self.warning_threshold) {
+        } else if (metrics.memory_usage_bytes as f64)
+            > (self.max_memory as f64 * self.warning_threshold)
+        {
             warnings.push(BudgetWarning::MemoryHigh {
                 used: metrics.memory_usage_bytes,
                 threshold: self.max_memory,
             });
         }
-        
+
         // Check cache hit rate
         if metrics.cache_hit_rate < 0.5 && metrics.total_queries > 100 {
             warnings.push(BudgetWarning::LowCacheHitRate {
                 rate: metrics.cache_hit_rate,
             });
         }
-        
-        BudgetStatus { warnings, violations }
+
+        BudgetStatus {
+            warnings,
+            violations,
+        }
     }
 }
 
@@ -377,7 +407,7 @@ impl BudgetStatus {
     pub fn is_ok(&self) -> bool {
         self.violations.is_empty()
     }
-    
+
     pub fn has_warnings(&self) -> bool {
         !self.warnings.is_empty()
     }
@@ -385,59 +415,75 @@ impl BudgetStatus {
 
 #[derive(Clone, Debug)]
 pub enum BudgetWarning {
-    QuerySlow { query: String, avg_time: Duration, threshold: Duration },
-    MemoryHigh { used: u64, threshold: u64 },
-    LowCacheHitRate { rate: f64 },
+    QuerySlow {
+        query: String,
+        avg_time: Duration,
+        threshold: Duration,
+    },
+    MemoryHigh {
+        used: u64,
+        threshold: u64,
+    },
+    LowCacheHitRate {
+        rate: f64,
+    },
 }
 
 #[derive(Clone, Debug)]
 pub enum BudgetViolation {
-    QueryTooSlow { query: String, avg_time: Duration, max_time: Duration },
-    MemoryExceeded { used: u64, limit: u64 },
+    QueryTooSlow {
+        query: String,
+        avg_time: Duration,
+        max_time: Duration,
+    },
+    MemoryExceeded {
+        used: u64,
+        limit: u64,
+    },
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_record_query() {
         let metrics = MetricsCollector::new();
-        
+
         metrics.record_query("test_query", Duration::from_millis(10), false);
         metrics.record_query("test_query", Duration::from_millis(20), false);
         metrics.record_query("test_query", Duration::from_millis(5), true);
-        
+
         let snapshot = metrics.snapshot();
         let stat = snapshot.query_stats.get("test_query").unwrap();
-        
+
         assert_eq!(stat.total_calls, 3);
         assert_eq!(stat.cached_calls, 1);
     }
-    
+
     #[test]
     fn test_cache_hit_rate() {
         let metrics = MetricsCollector::new();
-        
+
         metrics.record_cache_hit();
         metrics.record_cache_hit();
         metrics.record_cache_miss();
-        
+
         let snapshot = metrics.snapshot();
         assert!((snapshot.cache_hit_rate - 0.666).abs() < 0.01);
     }
-    
+
     #[test]
     fn test_budget_check() {
         let budget = PerformanceBudget::new(100, 100); // 100ms, 100MB
-        
+
         let metrics = MetricsCollector::new();
         metrics.record_query("slow_query", Duration::from_millis(150), false);
         metrics.add_memory(150 * 1024 * 1024); // 150MB
-        
+
         let snapshot = metrics.snapshot();
         let status = budget.check(&snapshot);
-        
+
         assert!(!status.is_ok());
         assert_eq!(status.violations.len(), 2);
     }

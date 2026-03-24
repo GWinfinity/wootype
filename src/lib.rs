@@ -1,5 +1,5 @@
 //! wootype 🐕 - Type System as a Service for Go
-//! 
+//!
 //! [![Crates.io](https://img.shields.io/crates/v/wootype)](https://crates.io/crates/wootype)
 //! [![Docs.rs](https://docs.rs/wootype/badge.svg)](https://docs.rs/wootype)
 //! [![License](https://img.shields.io/badge/license-MIT-blue)](../LICENSE)
@@ -145,7 +145,7 @@
 //!
 //! // 用户输入字符 → Salsa 增量检查 → 更新类型提示
 //! let universe = TypeUniverse::new();
-//! 
+//!
 //! // 初始检查
 //! let result = universe.check_file("main.go");
 //!
@@ -186,13 +186,13 @@
 //!
 //! // CI 管道中快速类型检查
 //! let universe = TypeUniverse::new();
-//! 
+//!
 //! // 检查整个项目
 //! let result = universe.check_project("./...");
-//! 
+//!
 //! // 或使用增量模式
 //! let result = universe.check_incremental(detect_changes("."));
-//! 
+//!
 //! if result.has_errors() {
 //!     std::process::exit(1);
 //! }
@@ -241,15 +241,15 @@
 #![warn(missing_docs)]
 #![allow(dead_code)] // Phase 1 implementation
 
-pub mod core;
-pub mod query;
-pub mod validate;
 pub mod agent;
-pub mod bridge;
 pub mod api;
-pub mod parser;
+pub mod bridge;
+pub mod core;
 pub mod daemon;
+pub mod parser;
+pub mod query;
 pub mod salsa;
+pub mod validate;
 
 /// Full Salsa integration with advanced features
 pub mod salsa_full;
@@ -259,13 +259,7 @@ pub mod semantic;
 
 // Re-export agent types for convenience
 pub use agent::{
-    AgentCoordinator,
-    AgentSession,
-    SessionConfig,
-    SessionId,
-    AgentType,
-    IsolationLevel,
-    AgentId,
+    AgentCoordinator, AgentId, AgentSession, AgentType, IsolationLevel, SessionConfig, SessionId,
 };
 
 /// Version of the library
@@ -285,14 +279,12 @@ pub mod prelude {
     //! let universe = TypeUniverse::new();
     //! let engine = QueryEngine::new(Arc::new(universe));
     //! ```
-    
+
+    pub use crate::agent::{AgentCoordinator, AgentSession};
     pub use crate::core::{
-        TypeUniverse, SharedUniverse,
-        Type, TypeId, TypeKind, PrimitiveType,
-        Entity, EntityId,
+        Entity, EntityId, PrimitiveType, SharedUniverse, Type, TypeId, TypeKind, TypeUniverse,
     };
     pub use crate::query::QueryEngine;
-    pub use crate::agent::{AgentCoordinator, AgentSession};
 }
 
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -316,8 +308,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 pub fn init_logging() {
     tracing_subscriber::registry()
         .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "info".into()),
+            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()),
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
@@ -328,13 +319,13 @@ pub mod build {
     //! 构建信息
     //!
     //! 包含编译时的信息，如构建时间、Git 提交等。
-    
+
     /// Build timestamp
     pub const TIMESTAMP: &str = "unknown";
-    
+
     /// Git commit
     pub const GIT_COMMIT: &str = "unknown";
-    
+
     /// Target triple
     pub const TARGET: &str = match option_env!("TARGET") {
         Some(t) => t,
@@ -345,16 +336,16 @@ pub mod build {
 /// 功能开关
 pub mod features {
     //! 编译时功能开关
-    
+
     /// 是否启用 Salsa 增量计算
     pub const SALSA_ENABLED: bool = cfg!(feature = "salsa");
-    
+
     /// 是否启用 gRPC 服务
     pub const GRPC_ENABLED: bool = cfg!(feature = "grpc");
-    
+
     /// 是否启用 WebSocket 服务
     pub const WEBSOCKET_ENABLED: bool = cfg!(feature = "websocket");
-    
+
     /// 是否启用 LSP 协议
     pub const LSP_ENABLED: bool = cfg!(feature = "lsp");
 }

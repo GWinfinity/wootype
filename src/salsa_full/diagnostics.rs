@@ -3,10 +3,10 @@
 //! Inspired by Rust's world-class error messages.
 //! Note: Full ariadne integration requires careful span handling.
 
-use std::path::{Path, PathBuf};
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 
-use super::{TypeError, Span, Location, ErrorType, Type};
+use super::{ErrorType, Location, Span, Type, TypeError};
 
 /// Error severity for styling
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -52,7 +52,7 @@ pub fn type_error_to_diagnostic(error: &TypeError, _source: &str, file: &Path) -
     let mut labels = vec![];
     let mut notes = vec![];
     let mut help = None;
-    
+
     match &error.error_type {
         ErrorType::TypeMismatch { expected, found } => {
             labels.push(RichLabel {
@@ -63,7 +63,7 @@ pub fn type_error_to_diagnostic(error: &TypeError, _source: &str, file: &Path) -
                 message: format!("expected `{}`, found `{}`", expected, found),
                 color: Color::Red,
             });
-            
+
             help = Some(format!(
                 "try converting: `{}.from({})` or `{}.to({})`",
                 expected, found, found, expected
@@ -98,7 +98,7 @@ pub fn type_error_to_diagnostic(error: &TypeError, _source: &str, file: &Path) -
                 message: format!("expected {} arguments, found {}", expected, found),
                 color: Color::Red,
             });
-            
+
             help = Some(format!("provide {} argument(s)", expected));
         }
         ErrorType::NotCallable(ty) => {
@@ -132,7 +132,7 @@ pub fn type_error_to_diagnostic(error: &TypeError, _source: &str, file: &Path) -
             });
         }
     }
-    
+
     RichDiagnostic {
         severity: Severity::Error,
         title: "type error".to_string(),
@@ -150,7 +150,7 @@ pub fn type_error_to_diagnostic(error: &TypeError, _source: &str, file: &Path) -
 /// Render a diagnostic to a string (simplified, ariadne-compatible format)
 pub fn render_diagnostic(diagnostic: &RichDiagnostic, _source: &str) -> String {
     let mut output = String::new();
-    
+
     // Header
     let severity_str = match diagnostic.severity {
         Severity::Error => "error",
@@ -158,13 +158,9 @@ pub fn render_diagnostic(diagnostic: &RichDiagnostic, _source: &str) -> String {
         Severity::Info => "info",
         Severity::Hint => "hint",
     };
-    
-    output.push_str(&format!(
-        "{}: {}\n",
-        severity_str,
-        diagnostic.title
-    ));
-    
+
+    output.push_str(&format!("{}: {}\n", severity_str, diagnostic.title));
+
     // Location
     output.push_str(&format!(
         "  --> {}:{}:{}\n",
@@ -172,30 +168,28 @@ pub fn render_diagnostic(diagnostic: &RichDiagnostic, _source: &str) -> String {
         diagnostic.location.span.line,
         diagnostic.location.span.column
     ));
-    
+
     // Message
     output.push_str(&format!("   |\n   = {}\n", diagnostic.message));
-    
+
     // Labels
     for label in &diagnostic.labels {
         output.push_str(&format!(
             "   | {} at {}:{}\n",
-            label.message,
-            label.location.span.start,
-            label.location.span.end
+            label.message, label.location.span.start, label.location.span.end
         ));
     }
-    
+
     // Help
     if let Some(help) = &diagnostic.help {
         output.push_str(&format!("   = help: {}\n", help));
     }
-    
+
     // Notes
     for note in &diagnostic.notes {
         output.push_str(&format!("   = note: {}\n", note));
     }
-    
+
     output
 }
 
@@ -210,11 +204,11 @@ impl FileCache {
             files: HashMap::new(),
         }
     }
-    
+
     pub fn insert(&mut self, path: PathBuf, source: String) {
         self.files.insert(path, source);
     }
-    
+
     pub fn get(&self, path: &Path) -> Option<&str> {
         self.files.get(path).map(|s| s.as_str())
     }
@@ -229,26 +223,31 @@ impl Default for FileCache {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_type_mismatch_diagnostic() {
         let error = TypeError {
             message: "Type mismatch".to_string(),
-            span: Span { start: 10, end: 15, line: 1, column: 10 },
+            span: Span {
+                start: 10,
+                end: 15,
+                line: 1,
+                column: 10,
+            },
             error_type: ErrorType::TypeMismatch {
                 expected: Type::Int,
                 found: Type::String,
             },
         };
-        
+
         let source = "x := \"hello\"\ny := x + 1";
         let file = Path::new("test.go");
-        
+
         let diagnostic = type_error_to_diagnostic(&error, source, file);
-        
+
         assert_eq!(diagnostic.severity, Severity::Error);
         assert!(!diagnostic.labels.is_empty());
-        
+
         // Test rendering
         let rendered = render_diagnostic(&diagnostic, source);
         assert!(rendered.contains("error"));

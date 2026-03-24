@@ -3,10 +3,10 @@
 //! Simplified implementation of Salsa concepts for wootype.
 //! Uses a query-based system with memoization.
 
+use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
-use parking_lot::RwLock;
 
 pub mod db;
 pub mod inputs;
@@ -19,9 +19,9 @@ pub use lsp::*;
 /// Query key for memoization
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub enum QueryKey {
-    ParseFile(String),        // file path
-    InferFunction(String),    // function name
-    ResolveImport(String),    // import path
+    ParseFile(String),     // file path
+    InferFunction(String), // function name
+    ResolveImport(String), // import path
 }
 
 /// Query result storage
@@ -46,7 +46,7 @@ pub struct IncrementalDb {
 
 #[derive(Default)]
 struct InputStorage {
-    files: HashMap<String, String>, // path -> content
+    files: HashMap<String, String>,          // path -> content
     functions: HashMap<String, FunctionDef>, // name -> definition
 }
 
@@ -65,42 +65,45 @@ impl IncrementalDb {
             versions: Arc::new(RwLock::new(HashMap::new())),
         }
     }
-    
+
     /// Set a source file input
     pub fn set_file(&self, path: String, content: String) {
         let mut inputs = self.inputs.write();
         let mut versions = self.versions.write();
-        
+
         // Check if content actually changed
         let changed = inputs.files.get(&path) != Some(&content);
-        
+
         if changed {
             inputs.files.insert(path.clone(), content);
             let new_version = versions.get(&path).unwrap_or(&0) + 1;
             versions.insert(path.clone(), new_version);
-            
+
             // Invalidate dependent queries
             self.invalidate_dependent_queries(&path);
         }
     }
-    
+
     /// Set a function definition
     pub fn set_function(&self, name: String, body: FunctionBody) {
         let mut inputs = self.inputs.write();
         let mut versions = self.versions.write();
-        
+
         let new_version = versions.get(&name).unwrap_or(&0) + 1;
         versions.insert(name.clone(), new_version);
-        
-        inputs.functions.insert(name.clone(), FunctionDef {
-            body,
-            version: new_version,
-        });
-        
+
+        inputs.functions.insert(
+            name.clone(),
+            FunctionDef {
+                body,
+                version: new_version,
+            },
+        );
+
         // Invalidate this specific function's queries
         self.invalidate_query(&QueryKey::InferFunction(name));
     }
-    
+
     /// Get or compute a query
     pub fn query<F>(&self, key: QueryKey, compute: F) -> QueryValue
     where
@@ -114,33 +117,31 @@ impl IncrementalDb {
                 return value.clone();
             }
         }
-        
+
         // Compute
         tracing::debug!("Cache miss for {:?}", key);
         let inputs = self.inputs.read();
         let value = compute(&inputs);
         drop(inputs);
-        
+
         // Store in cache
         let mut cache = self.cache.write();
         cache.insert(key.clone(), value.clone());
-        
+
         // Track dependency
         let mut deps = self.dependencies.write();
         deps.insert(key, vec![]); // Would track actual dependencies
-        
+
         value
     }
-    
+
     /// Parse a file (cached query)
     pub fn parse_file(&self, path: &str) -> ParseResult {
         let key = QueryKey::ParseFile(path.to_string());
-        
+
         match self.query(key, |inputs| {
-            let content = inputs.files.get(path)
-                .cloned()
-                .unwrap_or_default();
-            
+            let content = inputs.files.get(path).cloned().unwrap_or_default();
+
             // Parse the file
             let result = parse_go(&content);
             QueryValue::ParseResult(result)
@@ -149,16 +150,18 @@ impl IncrementalDb {
             _ => unreachable!(),
         }
     }
-    
+
     /// Infer function type (cached query)
     pub fn infer_function(&self, name: &str) -> FunctionTypeResult {
         let key = QueryKey::InferFunction(name.to_string());
-        
+
         match self.query(key, |inputs| {
-            let func_def = inputs.functions.get(name)
+            let func_def = inputs
+                .functions
+                .get(name)
                 .cloned()
                 .expect("Function not found");
-            
+
             let result = infer_function_body(&func_def.body);
             QueryValue::FunctionType(result)
         }) {
@@ -166,7 +169,7 @@ impl IncrementalDb {
             _ => unreachable!(),
         }
     }
-    
+
     /// Invalidate queries dependent on an input
     fn invalidate_dependent_queries(&self, input: &str) {
         let deps = self.dependencies.read();
@@ -176,20 +179,20 @@ impl IncrementalDb {
             .map(|(key, _)| key.clone())
             .collect();
         drop(deps);
-        
+
         let mut cache = self.cache.write();
         for key in to_invalidate {
             tracing::debug!("Invalidating query {:?}", key);
             cache.remove(&key);
         }
     }
-    
+
     /// Invalidate a specific query
     fn invalidate_query(&self, key: &QueryKey) {
         let mut cache = self.cache.write();
         cache.remove(key);
     }
-    
+
     /// Get stats
     pub fn stats(&self) -> DbStats {
         DbStats {
@@ -283,10 +286,20 @@ impl std::fmt::Display for Type {
 
 impl Type {
     fn is_numeric(&self) -> bool {
-        matches!(self, 
-            Type::Int | Type::Int8 | Type::Int16 | Type::Int32 | Type::Int64 |
-            Type::Uint | Type::Uint8 | Type::Uint16 | Type::Uint32 | Type::Uint64 |
-            Type::Float32 | Type::Float64
+        matches!(
+            self,
+            Type::Int
+                | Type::Int8
+                | Type::Int16
+                | Type::Int32
+                | Type::Int64
+                | Type::Uint
+                | Type::Uint8
+                | Type::Uint16
+                | Type::Uint32
+                | Type::Uint64
+                | Type::Float32
+                | Type::Float64
         )
     }
 }
@@ -320,7 +333,7 @@ pub struct Import {
 fn parse_go(source: &str) -> ParseResult {
     // Simplified parser - in production would use tree-sitter or similar
     let mut imports = Vec::new();
-    
+
     for line in source.lines() {
         let line = line.trim();
         if line.starts_with("import") {
@@ -333,7 +346,7 @@ fn parse_go(source: &str) -> ParseResult {
             }
         }
     }
-    
+
     ParseResult {
         ast: GoAst::empty(),
         errors: vec![],
@@ -386,9 +399,16 @@ pub enum Expression {
 
 #[derive(Clone, Debug)]
 pub enum BinaryOp {
-    Add, Sub, Mul, Div,
-    Eq, Ne, Lt, Gt,
-    And, Or,
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Eq,
+    Ne,
+    Lt,
+    Gt,
+    And,
+    Or,
 }
 
 impl std::fmt::Display for BinaryOp {
@@ -410,16 +430,17 @@ impl std::fmt::Display for BinaryOp {
 
 fn infer_function_body(body: &FunctionBody) -> FunctionTypeResult {
     let mut checker = FunctionChecker::new();
-    
+
     for stmt in &body.statements {
         checker.check_statement(stmt);
     }
-    
-    let return_type = body.return_expr
+
+    let return_type = body
+        .return_expr
         .as_ref()
         .map(|e| checker.infer_expr(e))
         .unwrap_or(Type::Unit);
-    
+
     FunctionTypeResult {
         return_type,
         param_types: vec![],
@@ -440,7 +461,7 @@ impl FunctionChecker {
             errors: Vec::new(),
         }
     }
-    
+
     fn check_statement(&mut self, stmt: &Statement) {
         match stmt {
             Statement::VarDecl(name, init) => {
@@ -452,8 +473,10 @@ impl FunctionChecker {
                 if let Some(var_ty) = self.local_types.get(name) {
                     if var_ty != &expr_ty && !is_assignable(var_ty, &expr_ty) {
                         self.errors.push(TypeError {
-                            message: format!("Cannot assign {} to variable of type {}", 
-                                expr_ty, var_ty),
+                            message: format!(
+                                "Cannot assign {} to variable of type {}",
+                                expr_ty, var_ty
+                            ),
                             line: 0,
                             column: 0,
                         });
@@ -465,7 +488,7 @@ impl FunctionChecker {
             }
         }
     }
-    
+
     fn infer_expr(&mut self, expr: &Expression) -> Type {
         match expr {
             Expression::IntLiteral(_) => Type::Int,
@@ -475,25 +498,22 @@ impl FunctionChecker {
             Expression::Identifier(name) => {
                 self.local_types.get(name).cloned().unwrap_or(Type::Unknown)
             }
-            Expression::BinaryOp(op, lhs, rhs) => {
-                self.check_binary_op(op, lhs, rhs)
-            }
-            Expression::Call(func, args) => {
-                self.check_call(func, args)
-            }
+            Expression::BinaryOp(op, lhs, rhs) => self.check_binary_op(op, lhs, rhs),
+            Expression::Call(func, args) => self.check_call(func, args),
         }
     }
-    
+
     fn check_binary_op(&mut self, op: &BinaryOp, lhs: &Expression, rhs: &Expression) -> Type {
         let lhs_ty = self.infer_expr(lhs);
         let rhs_ty = self.infer_expr(rhs);
-        
+
         match op {
             BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul | BinaryOp::Div => {
                 if lhs_ty.is_numeric() && rhs_ty.is_numeric() {
                     // Type promotion
-                    if matches!(lhs_ty, Type::Float64 | Type::Float32) || 
-                       matches!(rhs_ty, Type::Float64 | Type::Float32) {
+                    if matches!(lhs_ty, Type::Float64 | Type::Float32)
+                        || matches!(rhs_ty, Type::Float64 | Type::Float32)
+                    {
                         Type::Float64
                     } else {
                         Type::Int
@@ -507,16 +527,16 @@ impl FunctionChecker {
                     Type::Unknown
                 }
             }
-            BinaryOp::Eq | BinaryOp::Ne | BinaryOp::Lt | BinaryOp::Gt => {
-                Type::Bool
-            }
+            BinaryOp::Eq | BinaryOp::Ne | BinaryOp::Lt | BinaryOp::Gt => Type::Bool,
             BinaryOp::And | BinaryOp::Or => {
                 if lhs_ty == Type::Bool && rhs_ty == Type::Bool {
                     Type::Bool
                 } else {
                     self.errors.push(TypeError {
-                        message: format!("Logical operators require bool, got {} and {}", 
-                            lhs_ty, rhs_ty),
+                        message: format!(
+                            "Logical operators require bool, got {} and {}",
+                            lhs_ty, rhs_ty
+                        ),
                         line: 0,
                         column: 0,
                     });
@@ -525,7 +545,7 @@ impl FunctionChecker {
             }
         }
     }
-    
+
     fn check_call(&mut self, func: &Expression, args: &[Expression]) -> Type {
         // Simplified - would look up function signature
         for arg in args {
@@ -565,67 +585,76 @@ pub struct ResolvedImport {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_basic_inference() {
         let db = IncrementalDb::new();
-        
+
         let body = FunctionBody {
             statements: vec![],
             return_expr: Some(Expression::IntLiteral(42)),
         };
-        
+
         db.set_function("test".to_string(), body);
         let result = db.infer_function("test");
-        
+
         assert_eq!(result.return_type, Type::Int);
         assert!(result.errors.is_empty());
     }
-    
+
     #[test]
     fn test_incremental_update() {
         let db = IncrementalDb::new();
-        
+
         // Set up two functions
-        db.set_function("f1".to_string(), FunctionBody {
-            statements: vec![],
-            return_expr: Some(Expression::IntLiteral(1)),
-        });
-        db.set_function("f2".to_string(), FunctionBody {
-            statements: vec![],
-            return_expr: Some(Expression::StringLiteral("hi".to_string())),
-        });
-        
+        db.set_function(
+            "f1".to_string(),
+            FunctionBody {
+                statements: vec![],
+                return_expr: Some(Expression::IntLiteral(1)),
+            },
+        );
+        db.set_function(
+            "f2".to_string(),
+            FunctionBody {
+                statements: vec![],
+                return_expr: Some(Expression::StringLiteral("hi".to_string())),
+            },
+        );
+
         // Initial check
         let r1_v1 = db.infer_function("f1");
         let r2_v1 = db.infer_function("f2");
-        
+
         assert_eq!(r1_v1.return_type, Type::Int);
         assert_eq!(r2_v1.return_type, Type::String);
-        
+
         // Check stats - both should be cached
         let stats = db.stats();
         assert_eq!(stats.cached_queries, 2);
-        
+
         // Update f1
-        db.set_function("f1".to_string(), FunctionBody {
-            statements: vec![],
-            return_expr: Some(Expression::FloatLiteral(3.14)),
-        });
-        
+        db.set_function(
+            "f1".to_string(),
+            FunctionBody {
+                statements: vec![],
+                return_expr: Some(Expression::FloatLiteral(3.14)),
+            },
+        );
+
         // f1 should be recomputed
         let r1_v2 = db.infer_function("f1");
         assert_eq!(r1_v2.return_type, Type::Float64);
-        
+
         // f2 should still return cached result
         let r2_v2 = db.infer_function("f2");
         assert_eq!(r2_v2.return_type, Type::String);
     }
-    
+
     #[test]
     fn test_type_error() {
         let db = IncrementalDb::new();
-        
+
         // "hello" + 42 is a type error
         let body = FunctionBody {
             statements: vec![],
@@ -635,10 +664,10 @@ mod tests {
                 Box::new(Expression::IntLiteral(42)),
             )),
         };
-        
+
         db.set_function("bad".to_string(), body);
         let result = db.infer_function("bad");
-        
+
         assert!(!result.errors.is_empty());
     }
 }

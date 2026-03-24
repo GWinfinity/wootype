@@ -2,14 +2,14 @@
 //!
 //! Main daemon implementation for running wootype as a service.
 
-use crate::core::SharedUniverse;
 use crate::agent::AgentCoordinator;
-use crate::api::{ApiServer, ApiConfig, GrpcTypeService, WebSocketServer};
+use crate::api::{ApiConfig, ApiServer, GrpcTypeService, WebSocketServer};
+use crate::core::SharedUniverse;
 
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{info, error, warn};
+use tracing::{error, info, warn};
 
 /// Daemon configuration
 #[derive(Debug, Clone)]
@@ -102,11 +102,11 @@ impl TypeDaemon {
     /// Preload stdlib packages
     async fn preload_stdlib(&self) -> Result<(), DaemonError> {
         info!("Preloading stdlib packages...");
-        
+
         let importer = crate::parser::PackageImporter::new(self.universe.clone());
         let results = importer.preload_stdlib().await;
         let total_imported: usize = results.iter().map(|r| r.types_imported).sum();
-        
+
         info!("Preloaded {} types from stdlib", total_imported);
         Ok(())
     }
@@ -115,10 +115,7 @@ impl TypeDaemon {
     async fn start_grpc(&self) -> Result<tokio::task::JoinHandle<()>, DaemonError> {
         info!("Starting gRPC server on {}", self.config.grpc_addr);
 
-        let service = GrpcTypeService::new(
-            self.universe.clone(),
-            self.coordinator.clone(),
-        );
+        let service = GrpcTypeService::new(self.universe.clone(), self.coordinator.clone());
 
         let addr = self.config.grpc_addr;
         let reflection_service = tonic_reflection::server::Builder::configure()

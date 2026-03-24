@@ -1,22 +1,24 @@
 //! Type representations for Go types
-//! 
+//!
 //! Implements a comprehensive type system supporting all Go types
 //! with efficient fingerprinting for SIMD-accelerated lookups.
 
-use std::sync::Arc;
 use bitflags::bitflags;
+use std::sync::Arc;
 
 /// Unique type identifier (interned)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub struct TypeId(pub u64);
 
 impl TypeId {
     pub const INVALID: TypeId = TypeId(0);
-    
+
     pub fn new(id: u64) -> Self {
         Self(id)
     }
-    
+
     pub fn is_valid(&self) -> bool {
         self.0 != 0
     }
@@ -30,7 +32,9 @@ impl Default for TypeId {
 
 /// Type fingerprint for fast similarity comparison
 /// Uses 64-bit hash for nanosecond-level type matching
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Default, serde::Serialize, serde::Deserialize,
+)]
 pub struct TypeFingerprint(pub u64);
 
 impl TypeFingerprint {
@@ -44,7 +48,7 @@ impl TypeFingerprint {
         }
         Self(hash)
     }
-    
+
     /// Check if this fingerprint likely matches another
     /// Used for pre-filtering before full type comparison
     pub fn likely_matches(&self, other: &TypeFingerprint) -> bool {
@@ -112,14 +116,16 @@ impl PrimitiveType {
             Self::UntypedNil => "untyped nil",
         }
     }
-    
+
     pub fn fingerprint(&self) -> TypeFingerprint {
         TypeFingerprint(*self as u64)
     }
 }
 
 /// Type kind flags for quick classification
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Default, serde::Serialize, serde::Deserialize,
+)]
 pub struct TypeFlags(pub u32);
 
 impl TypeFlags {
@@ -184,7 +190,7 @@ impl std::ops::Not for TypeFlags {
 pub enum TypeKind {
     /// Primitive/builtin type
     Primitive(PrimitiveType),
-    
+
     /// Named type (type declaration)
     Named {
         #[serde(with = "arc_str")]
@@ -193,66 +199,49 @@ pub enum TypeKind {
         name: Arc<str>,
         underlying: TypeId,
     },
-    
+
     /// Pointer type
-    Pointer {
-        elem: TypeId,
-    },
-    
+    Pointer { elem: TypeId },
+
     /// Slice type
-    Slice {
-        elem: TypeId,
-    },
-    
+    Slice { elem: TypeId },
+
     /// Array type
-    Array {
-        len: u64,
-        elem: TypeId,
-    },
-    
+    Array { len: u64, elem: TypeId },
+
     /// Map type
-    Map {
-        key: TypeId,
-        value: TypeId,
-    },
-    
+    Map { key: TypeId, value: TypeId },
+
     /// Channel type
-    Chan {
-        dir: ChanDir,
-        elem: TypeId,
-    },
-    
+    Chan { dir: ChanDir, elem: TypeId },
+
     /// Function type
     Func {
         params: Vec<FuncParam>,
         results: Vec<FuncParam>,
         variadic: bool,
     },
-    
+
     /// Struct type
-    Struct {
-        fields: Vec<StructField>,
-    },
-    
+    Struct { fields: Vec<StructField> },
+
     /// Interface type
     Interface {
         methods: Vec<InterfaceMethod>,
         embedded: Vec<TypeId>,
         implicit: bool, // true for type constraints
     },
-    
+
     /// Type parameter (generic)
     TypeParam {
         #[serde(with = "arc_str")]
         name: Arc<str>,
         constraint: TypeId,
     },
-    
+
     /// Tuple (for multiple return values in type checking)
-    Tuple {
-        elems: Vec<TypeId>,
-    },
-    
+    Tuple { elems: Vec<TypeId> },
+
     /// Signature with receiver (for methods)
     Signature {
         recv: Option<TypeId>,
@@ -274,19 +263,29 @@ impl TypeKind {
                     PrimitiveType::String | PrimitiveType::UntypedString => {
                         f |= TypeFlags::COMPARABLE | TypeFlags::ORDERED;
                     }
-                    PrimitiveType::Int | PrimitiveType::Int8 | PrimitiveType::Int16 |
-                    PrimitiveType::Int32 | PrimitiveType::Int64 |
-                    PrimitiveType::Uint | PrimitiveType::Uint8 | PrimitiveType::Uint16 |
-                    PrimitiveType::Uint32 | PrimitiveType::Uint64 | PrimitiveType::Uintptr |
-                    PrimitiveType::UntypedInt | PrimitiveType::UntypedRune => {
+                    PrimitiveType::Int
+                    | PrimitiveType::Int8
+                    | PrimitiveType::Int16
+                    | PrimitiveType::Int32
+                    | PrimitiveType::Int64
+                    | PrimitiveType::Uint
+                    | PrimitiveType::Uint8
+                    | PrimitiveType::Uint16
+                    | PrimitiveType::Uint32
+                    | PrimitiveType::Uint64
+                    | PrimitiveType::Uintptr
+                    | PrimitiveType::UntypedInt
+                    | PrimitiveType::UntypedRune => {
                         f |= TypeFlags::COMPARABLE | TypeFlags::ORDERED;
                     }
-                    PrimitiveType::Float32 | PrimitiveType::Float64 |
-                    PrimitiveType::UntypedFloat => {
+                    PrimitiveType::Float32
+                    | PrimitiveType::Float64
+                    | PrimitiveType::UntypedFloat => {
                         f |= TypeFlags::ORDERED;
                     }
-                    PrimitiveType::Complex64 | PrimitiveType::Complex128 |
-                    PrimitiveType::UntypedComplex => {
+                    PrimitiveType::Complex64
+                    | PrimitiveType::Complex128
+                    | PrimitiveType::UntypedComplex => {
                         f |= TypeFlags::COMPARABLE;
                     }
                     PrimitiveType::UnsafePointer | PrimitiveType::UntypedNil => {
@@ -303,17 +302,19 @@ impl TypeKind {
             Self::Chan { .. } => TypeFlags::CHAN | TypeFlags::NILABLE,
             Self::Func { .. } => TypeFlags::FUNC | TypeFlags::NILABLE,
             Self::Struct { .. } => TypeFlags::STRUCT | TypeFlags::COMPOSITE,
-            Self::Interface { .. } => TypeFlags::INTERFACE | TypeFlags::NILABLE | TypeFlags::COMPOSITE,
+            Self::Interface { .. } => {
+                TypeFlags::INTERFACE | TypeFlags::NILABLE | TypeFlags::COMPOSITE
+            }
             Self::TypeParam { .. } => TypeFlags::TYPE_PARAM | TypeFlags::GENERIC,
             Self::Tuple { .. } => TypeFlags::TUPLE,
             Self::Signature { .. } => TypeFlags::FUNC,
         };
-        
+
         // Add COMPOSITE flag for complex types
         if !flags.intersects(TypeFlags::BASIC | TypeFlags::NAMED) {
             flags |= TypeFlags::COMPOSITE;
         }
-        
+
         flags
     }
 }
@@ -356,14 +357,14 @@ pub struct InterfaceMethod {
 mod arc_str {
     use serde::{self, Deserialize, Deserializer, Serializer};
     use std::sync::Arc;
-    
+
     pub fn serialize<S>(arc: &Arc<str>, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
         serializer.serialize_str(arc)
     }
-    
+
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Arc<str>, D::Error>
     where
         D: Deserializer<'de>,
@@ -376,7 +377,7 @@ mod arc_str {
 mod arc_str_opt {
     use serde::{self, Deserialize, Deserializer, Serializer};
     use std::sync::Arc;
-    
+
     pub fn serialize<S>(opt: &Option<Arc<str>>, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -386,7 +387,7 @@ mod arc_str_opt {
             None => serializer.serialize_none(),
         }
     }
-    
+
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<Arc<str>>, D::Error>
     where
         D: Deserializer<'de>,
@@ -409,7 +410,7 @@ impl Type {
     pub fn new(id: TypeId, kind: TypeKind) -> Self {
         let fingerprint = Self::compute_fingerprint(&id, &kind);
         let flags = kind.flags();
-        
+
         Self {
             id,
             kind,
@@ -417,23 +418,23 @@ impl Type {
             flags,
         }
     }
-    
+
     fn compute_fingerprint(id: &TypeId, kind: &TypeKind) -> TypeFingerprint {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
-        
+
         let mut hasher = DefaultHasher::new();
         id.hash(&mut hasher);
         std::mem::discriminant(kind).hash(&mut hasher);
         TypeFingerprint(hasher.finish())
     }
-    
+
     /// Check if this type implements the given interface
     pub fn implements(&self, interface: &Type) -> bool {
         if !interface.flags.contains(TypeFlags::INTERFACE) {
             return false;
         }
-        
+
         // TODO: Full interface satisfaction check
         // For now, return conservative result
         match (&self.kind, &interface.kind) {
@@ -442,7 +443,7 @@ impl Type {
             _ => false,
         }
     }
-    
+
     /// Get the underlying type (for named types)
     pub fn underlying(&self) -> Option<TypeId> {
         match &self.kind {
@@ -450,7 +451,7 @@ impl Type {
             _ => None,
         }
     }
-    
+
     /// Check if types are identical
     pub fn identical(&self, other: &Type) -> bool {
         self.id == other.id || self.fingerprint == other.fingerprint
@@ -478,17 +479,17 @@ mod tests {
     fn test_primitive_fingerprint() {
         let int_fp = PrimitiveType::Int.fingerprint();
         let int64_fp = PrimitiveType::Int64.fingerprint();
-        
+
         assert_ne!(int_fp, int64_fp);
     }
-    
+
     #[test]
     fn test_type_flags() {
         let ptr = TypeKind::Pointer { elem: TypeId(1) };
         assert!(ptr.flags().contains(TypeFlags::POINTER));
         assert!(ptr.flags().contains(TypeFlags::NILABLE));
     }
-    
+
     #[test]
     fn test_all_primitives_have_unique_fingerprints() {
         let primitives = vec![
@@ -507,57 +508,57 @@ mod tests {
             PrimitiveType::Float64,
             PrimitiveType::String,
         ];
-        
+
         let mut fingerprints = std::collections::HashSet::new();
         for p in &primitives {
             let fp = p.fingerprint();
             assert!(fingerprints.insert(fp), "Duplicate fingerprint for {:?}", p);
         }
     }
-    
+
     #[test]
     fn test_type_flags_operations() {
         let a = TypeFlags::BASIC;
         let b = TypeFlags::COMPARABLE;
         let c = a | b;
-        
+
         assert!(c.contains(a));
         assert!(c.contains(b));
         assert!(!c.contains(TypeFlags::POINTER));
-        
+
         // Test intersection
         let d = c & a;
         assert!(d.contains(a));
         assert!(!d.contains(b));
     }
-    
+
     #[test]
     fn test_type_creation() {
         let typ = Type::new(TypeId(1), TypeKind::Primitive(PrimitiveType::Int));
         assert_eq!(typ.id, TypeId(1));
         assert!(typ.flags.contains(TypeFlags::BASIC));
     }
-    
+
     #[test]
     fn test_type_equality() {
         let t1 = Type::new(TypeId(1), TypeKind::Primitive(PrimitiveType::Int));
         let t2 = Type::new(TypeId(1), TypeKind::Primitive(PrimitiveType::Int));
         assert!(t1.identical(&t2));
     }
-    
+
     #[test]
     fn test_primitive_type_strings() {
         assert_eq!(PrimitiveType::Int.as_str(), "int");
         assert_eq!(PrimitiveType::String.as_str(), "string");
         assert_eq!(PrimitiveType::Bool.as_str(), "bool");
     }
-    
+
     #[test]
     fn test_fingerprint_likely_matches() {
         let fp1 = TypeFingerprint(0x12345678);
         let fp2 = TypeFingerprint(0x12345678);
         let fp3 = TypeFingerprint(0x87654321);
-        
+
         assert!(fp1.likely_matches(&fp2));
         assert!(!fp1.likely_matches(&fp3));
     }

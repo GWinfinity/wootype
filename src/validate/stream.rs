@@ -1,15 +1,15 @@
 //! Streaming validation for AI token-by-token generation
-//! 
+//!
 //! Adapts to AI generation patterns with real-time feedback.
 
-use super::error::{ValidationError, SoftError, ErrorSeverity};
-use super::infer::{TypeInference, LookaheadContext};
-use crate::core::{TypeUniverse, SharedUniverse, TypeId, Type, Entity};
+use super::error::{ErrorSeverity, SoftError, ValidationError};
+use super::infer::{LookaheadContext, TypeInference};
+use crate::core::{Entity, SharedUniverse, Type, TypeId, TypeUniverse};
 use crate::query::QueryEngine;
 
-use tokio::sync::{mpsc, broadcast};
-use std::sync::Arc;
 use parking_lot::RwLock;
+use std::sync::Arc;
+use tokio::sync::{broadcast, mpsc};
 
 /// Events in the validation stream
 #[derive(Debug, Clone)]
@@ -41,9 +41,7 @@ pub enum ValidationEvent {
         error: ValidationError,
     },
     /// Checkpoint for rollback
-    Checkpoint {
-        id: CheckpointId,
-    },
+    Checkpoint { id: CheckpointId },
 }
 
 /// Source position in file
@@ -56,7 +54,11 @@ pub struct SourcePosition {
 
 impl SourcePosition {
     pub fn new(line: u32, column: u32, offset: u32) -> Self {
-        Self { line, column, offset }
+        Self {
+            line,
+            column,
+            offset,
+        }
     }
 }
 
@@ -127,23 +129,49 @@ pub enum LiteralValue {
 
 #[derive(Debug, Clone, Copy)]
 pub enum BinaryOp {
-    Add, Sub, Mul, Div, Rem,
-    And, Or,
-    Eq, Ne, Lt, Le, Gt, Ge,
-    BitAnd, BitOr, BitXor, Shl, Shr,
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Rem,
+    And,
+    Or,
+    Eq,
+    Ne,
+    Lt,
+    Le,
+    Gt,
+    Ge,
+    BitAnd,
+    BitOr,
+    BitXor,
+    Shl,
+    Shr,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub enum UnaryOp {
-    Not, Neg, Pos, BitNot, Deref, Addr,
+    Not,
+    Neg,
+    Pos,
+    BitNot,
+    Deref,
+    Addr,
 }
 
 /// Validation result
 #[derive(Debug, Clone)]
 pub enum ValidationResult {
-    Valid { typ: TypeId },
-    Invalid { errors: Vec<ValidationError> },
-    Partial { typ: Option<TypeId>, issues: Vec<SoftError> },
+    Valid {
+        typ: TypeId,
+    },
+    Invalid {
+        errors: Vec<ValidationError>,
+    },
+    Partial {
+        typ: Option<TypeId>,
+        issues: Vec<SoftError>,
+    },
     Unknown,
 }
 
@@ -152,11 +180,11 @@ pub struct ValidationStream {
     universe: SharedUniverse,
     query_engine: QueryEngine,
     inference: TypeInference,
-    
+
     // Event channels
     input_tx: mpsc::Sender<ValidationEvent>,
     output_rx: broadcast::Receiver<StreamOutput>,
-    
+
     // State
     expressions: RwLock<im::HashMap<ExpressionId, ExpressionState>>,
     checkpoints: RwLock<im::HashMap<CheckpointId, CheckpointState>>,
@@ -192,10 +220,10 @@ impl ValidationStream {
     pub fn new(universe: SharedUniverse) -> Self {
         let (input_tx, mut input_rx) = mpsc::channel(1024);
         let (output_tx, output_rx) = broadcast::channel(1024);
-        
+
         let query_engine = QueryEngine::new(universe.clone());
         let inference = TypeInference::new(universe.clone());
-        
+
         let stream = Self {
             universe: universe.clone(),
             query_engine,
@@ -207,7 +235,7 @@ impl ValidationStream {
             expr_counter: std::sync::atomic::AtomicU64::new(1),
             checkpoint_counter: std::sync::atomic::AtomicU64::new(1),
         };
-        
+
         // Spawn processing task
         let stream_clone = stream.clone_ref();
         tokio::spawn(async move {
@@ -215,7 +243,7 @@ impl ValidationStream {
                 let start = std::time::Instant::now();
                 stream_clone.process_event(event.clone()).await;
                 let latency = start.elapsed().as_micros() as u64;
-                
+
                 let _ = output_tx.send(StreamOutput {
                     event,
                     timestamp: start,
@@ -223,10 +251,10 @@ impl ValidationStream {
                 });
             }
         });
-        
+
         stream
     }
-    
+
     fn clone_ref(&self) -> Self {
         Self {
             universe: self.universe.clone(),
@@ -237,24 +265,28 @@ impl ValidationStream {
             expressions: RwLock::new(self.expressions.read().clone()),
             checkpoints: RwLock::new(self.checkpoints.read().clone()),
             expr_counter: std::sync::atomic::AtomicU64::new(
-                self.expr_counter.load(std::sync::atomic::Ordering::SeqCst)
+                self.expr_counter.load(std::sync::atomic::Ordering::SeqCst),
             ),
             checkpoint_counter: std::sync::atomic::AtomicU64::new(
-                self.checkpoint_counter.load(std::sync::atomic::Ordering::SeqCst)
+                self.checkpoint_counter
+                    .load(std::sync::atomic::Ordering::SeqCst),
             ),
         }
     }
-    
+
     /// Submit event to validation stream
-    pub async fn submit(&self, event: ValidationEvent) -> Result<(), mpsc::error::SendError<ValidationEvent>> {
+    pub async fn submit(
+        &self,
+        event: ValidationEvent,
+    ) -> Result<(), mpsc::error::SendError<ValidationEvent>> {
         self.input_tx.send(event).await
     }
-    
+
     /// Get output receiver
     pub fn subscribe(&self) -> broadcast::Receiver<StreamOutput> {
         self.output_rx.resubscribe()
     }
-    
+
     /// Process validation event
     async fn process_event(&self, event: ValidationEvent) {
         match event {
@@ -270,21 +302,21 @@ impl ValidationStream {
             _ => {}
         }
     }
-    
+
     async fn process_token(&self, _text: &str, _position: SourcePosition) {
         // Token-level processing for look-ahead inference
         // Analyze partial tokens to predict completion
     }
-    
+
     async fn process_expression(&self, expr: Expression, position: SourcePosition) {
         let id = self.next_expr_id();
-        
+
         // Infer type with look-ahead
         let inferred = self.inference.infer(&expr, &LookaheadContext::default());
-        
+
         // Validate expression
         let result = self.validate_expression(&expr, inferred.as_ref());
-        
+
         // Store state
         let state = ExpressionState {
             expr: expr.clone(),
@@ -292,34 +324,34 @@ impl ValidationStream {
             inferred_type: inferred,
             validation_result: Some(result.clone()),
         };
-        
+
         {
             let mut expressions = self.expressions.write();
             *expressions = expressions.update(id, state);
         }
-        
+
         // Emit validation result
         // This would typically be sent back via output channel
     }
-    
-    fn validate_expression(&self, expr: &Expression, expected_type: Option<&TypeId>) -> ValidationResult {
+
+    fn validate_expression(
+        &self,
+        expr: &Expression,
+        expected_type: Option<&TypeId>,
+    ) -> ValidationResult {
         match expr {
-            Expression::Identifier(name) => {
-                self.validate_identifier(name, expected_type)
-            }
+            Expression::Identifier(name) => self.validate_identifier(name, expected_type),
             Expression::Binary { op, left, right } => {
                 self.validate_binary_op(*op, left, right, expected_type)
             }
-            Expression::Call { func, args } => {
-                self.validate_call(func, args, expected_type)
-            }
+            Expression::Call { func, args } => self.validate_call(func, args, expected_type),
             Expression::Selector { base, field } => {
                 self.validate_selector(base, field, expected_type)
             }
             _ => ValidationResult::Unknown,
         }
     }
-    
+
     fn validate_identifier(&self, name: &str, expected: Option<&TypeId>) -> ValidationResult {
         // Look up identifier in scope
         // For now, return partial with soft error
@@ -332,24 +364,26 @@ impl ValidationStream {
             }],
         }
     }
-    
+
     fn validate_binary_op(
         &self,
         op: BinaryOp,
         left: &Expression,
         right: &Expression,
-        expected: Option<&TypeId>
+        expected: Option<&TypeId>,
     ) -> ValidationResult {
         let left_result = self.validate_expression(left, None);
         let right_result = self.validate_expression(right, None);
-        
+
         // Check operator compatibility
         match (left_result, right_result) {
-            (ValidationResult::Valid { typ: left_type }, 
-             ValidationResult::Valid { typ: right_type }) => {
+            (
+                ValidationResult::Valid { typ: left_type },
+                ValidationResult::Valid { typ: right_type },
+            ) => {
                 if self.types_compatible_for_op(op, left_type, right_type) {
-                    ValidationResult::Valid { 
-                        typ: self.result_type_for_op(op, left_type, right_type)
+                    ValidationResult::Valid {
+                        typ: self.result_type_for_op(op, left_type, right_type),
                     }
                 } else {
                     ValidationResult::Invalid {
@@ -369,52 +403,52 @@ impl ValidationStream {
             _ => ValidationResult::Unknown,
         }
     }
-    
+
     fn types_compatible_for_op(&self, op: BinaryOp, left: TypeId, right: TypeId) -> bool {
         // Simplified compatibility check
         left == right || self.is_numeric_op(op)
     }
-    
+
     fn is_numeric_op(&self, op: BinaryOp) -> bool {
-        matches!(op, 
-            BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul | 
-            BinaryOp::Div | BinaryOp::Rem
+        matches!(
+            op,
+            BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul | BinaryOp::Div | BinaryOp::Rem
         )
     }
-    
+
     fn result_type_for_op(&self, _op: BinaryOp, left: TypeId, _right: TypeId) -> TypeId {
         left // Simplified
     }
-    
+
     fn validate_call(
         &self,
         func: &Expression,
         args: &[Expression],
-        expected: Option<&TypeId>
+        expected: Option<&TypeId>,
     ) -> ValidationResult {
         // Validate function expression
         let func_result = self.validate_expression(func, None);
-        
+
         // Validate arguments
         for arg in args {
             let _ = self.validate_expression(arg, None);
         }
-        
+
         // Check arity and types
         ValidationResult::Partial {
             typ: expected.copied(),
             issues: vec![],
         }
     }
-    
+
     fn validate_selector(
         &self,
         base: &Expression,
         field: &str,
-        expected: Option<&TypeId>
+        expected: Option<&TypeId>,
     ) -> ValidationResult {
         let base_result = self.validate_expression(base, None);
-        
+
         // Check if base type has field
         match base_result {
             ValidationResult::Valid { typ } => {
@@ -431,20 +465,17 @@ impl ValidationStream {
             _ => base_result,
         }
     }
-    
+
     async fn create_checkpoint(&self, id: CheckpointId) {
         let expressions = self.expressions.read().clone();
         let scope = self.universe.current_scope();
-        
-        let checkpoint = CheckpointState {
-            expressions,
-            scope,
-        };
-        
+
+        let checkpoint = CheckpointState { expressions, scope };
+
         let mut checkpoints = self.checkpoints.write();
         *checkpoints = checkpoints.update(id, checkpoint);
     }
-    
+
     /// Rollback to checkpoint
     pub fn rollback(&self, checkpoint_id: CheckpointId) -> bool {
         if let Some(checkpoint) = self.checkpoints.read().get(&checkpoint_id).cloned() {
@@ -455,17 +486,19 @@ impl ValidationStream {
             false
         }
     }
-    
+
     fn next_expr_id(&self) -> ExpressionId {
         ExpressionId::new(
-            self.expr_counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+            self.expr_counter
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst),
         )
     }
-    
+
     /// Create a new checkpoint and return its ID
     pub async fn checkpoint(&self) -> CheckpointId {
         let id = CheckpointId::new(
-            self.checkpoint_counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+            self.checkpoint_counter
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst),
         );
         let _: Result<(), _> = self.submit(ValidationEvent::Checkpoint { id }).await;
         id
@@ -481,11 +514,14 @@ mod tests {
     async fn test_stream_creation() {
         let universe = Arc::new(TypeUniverse::new());
         let stream = ValidationStream::new(universe);
-        
+
         let expr = Expression::Identifier("x".to_string());
-        stream.submit(ValidationEvent::Expression {
-            expr,
-            position: SourcePosition::default(),
-        }).await.unwrap();
+        stream
+            .submit(ValidationEvent::Expression {
+                expr,
+                position: SourcePosition::default(),
+            })
+            .await
+            .unwrap();
     }
 }

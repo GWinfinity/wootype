@@ -6,12 +6,12 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use std::sync::Arc;
 
 fn bench_type_lookup(c: &mut Criterion) {
-    use wootype::core::{TypeUniverse, TypeId};
+    use wootype::core::{TypeId, TypeUniverse};
     use wootype::query::QueryEngine;
-    
+
     let universe = Arc::new(TypeUniverse::new());
     let engine = QueryEngine::new(universe);
-    
+
     c.bench_function("type_lookup_by_id", |b| {
         b.iter(|| {
             let _ = engine.get_type(black_box(TypeId(2)));
@@ -21,9 +21,9 @@ fn bench_type_lookup(c: &mut Criterion) {
 
 fn bench_symbol_intern(c: &mut Criterion) {
     use wootype::core::symbol::SymbolTable;
-    
+
     let table = SymbolTable::new();
-    
+
     c.bench_function("symbol_intern", |b| {
         let mut i = 0;
         b.iter(|| {
@@ -36,14 +36,14 @@ fn bench_symbol_intern(c: &mut Criterion) {
 
 fn bench_cache_operations(c: &mut Criterion) {
     use wootype::query::cache::QueryCache;
-    
+
     let cache = QueryCache::<String, i32>::new(1000);
-    
+
     // Pre-populate cache
     for i in 0..100 {
         cache.insert(format!("key_{}", i), i);
     }
-    
+
     c.bench_function("cache_get", |b| {
         let mut i = 0;
         b.iter(|| {
@@ -52,7 +52,7 @@ fn bench_cache_operations(c: &mut Criterion) {
             i += 1;
         })
     });
-    
+
     c.bench_function("cache_insert", |b| {
         let mut i = 0;
         b.iter(|| {
@@ -65,7 +65,7 @@ fn bench_cache_operations(c: &mut Criterion) {
 
 fn bench_fingerprint_calculation(c: &mut Criterion) {
     use wootype::core::types::PrimitiveType;
-    
+
     c.bench_function("fingerprint_calc", |b| {
         b.iter(|| {
             let _ = PrimitiveType::Int.fingerprint();
@@ -75,16 +75,16 @@ fn bench_fingerprint_calculation(c: &mut Criterion) {
 
 fn bench_type_flags_ops(c: &mut Criterion) {
     use wootype::core::types::TypeFlags;
-    
+
     let flags1 = TypeFlags::BASIC | TypeFlags::COMPARABLE;
     let flags2 = TypeFlags::POINTER | TypeFlags::NILABLE;
-    
+
     c.bench_function("type_flags_bitor", |b| {
         b.iter(|| {
             let _ = black_box(flags1) | black_box(flags2);
         })
     });
-    
+
     c.bench_function("type_flags_contains", |b| {
         b.iter(|| {
             let _ = black_box(flags1).contains(TypeFlags::BASIC);

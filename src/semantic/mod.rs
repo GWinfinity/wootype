@@ -25,20 +25,20 @@
 //! let impls = os.find_implementations(interface)?;
 //! ```
 
-pub mod queries;
 pub mod checks;
 pub mod operations;
+pub mod queries;
 
-use std::path::{Path, PathBuf};
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
-use crate::salsa_full::{TypeDatabase, SourceFile, Symbol, Type, Location};
+use crate::salsa_full::{Location, SourceFile, Symbol, Type, TypeDatabase};
 
 // Re-export main types
+pub use self::checks::{CheckEngine, CompatibilityResult, InterfaceCheckResult};
+pub use self::operations::{OperationEngine, TextEdit, WorkspaceEdit};
 pub use self::queries::{QueryEngine, SymbolInfo};
-pub use self::checks::{CheckEngine, InterfaceCheckResult, CompatibilityResult};
-pub use self::operations::{OperationEngine, WorkspaceEdit, TextEdit};
 
 /// 光标位置
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -122,10 +122,10 @@ impl SemanticOS {
     /// 获取光标位置的类型信息
     pub fn type_at(&self, file: &Path, position: Position) -> Option<QueryResult<Type>> {
         let start = std::time::Instant::now();
-        
+
         let engine = self.query_engine.lock().ok()?;
         let result = engine.type_at(file, position);
-        
+
         Some(QueryResult {
             data: result?,
             duration_ms: start.elapsed().as_secs_f64() * 1000.0,
@@ -140,10 +140,10 @@ impl SemanticOS {
         position: Position,
     ) -> Option<QueryResult<DocumentLocation>> {
         let start = std::time::Instant::now();
-        
+
         let engine = self.query_engine.lock().ok()?;
         let result = engine.goto_definition(file, position)?;
-        
+
         Some(QueryResult {
             data: result,
             duration_ms: start.elapsed().as_secs_f64() * 1000.0,
@@ -159,10 +159,10 @@ impl SemanticOS {
         include_declaration: bool,
     ) -> Option<QueryResult<Vec<DocumentLocation>>> {
         let start = std::time::Instant::now();
-        
+
         let engine = self.query_engine.lock().ok()?;
         let result = engine.find_references(file, position, include_declaration);
-        
+
         Some(QueryResult {
             data: result,
             duration_ms: start.elapsed().as_secs_f64() * 1000.0,
@@ -177,10 +177,10 @@ impl SemanticOS {
         position: Position,
     ) -> Option<QueryResult<Vec<DocumentLocation>>> {
         let start = std::time::Instant::now();
-        
+
         let engine = self.query_engine.lock().ok()?;
         let result = engine.find_implementations(file, position);
-        
+
         Some(QueryResult {
             data: result,
             duration_ms: start.elapsed().as_secs_f64() * 1000.0,
@@ -195,10 +195,10 @@ impl SemanticOS {
         interface_name: &str,
     ) -> Option<QueryResult<checks::InterfaceCheckResult>> {
         let start = std::time::Instant::now();
-        
+
         let engine = self.check_engine.lock().ok()?;
         let result = engine.check_interface_implementations(interface_file, interface_name);
-        
+
         Some(QueryResult {
             data: result,
             duration_ms: start.elapsed().as_secs_f64() * 1000.0,
@@ -213,10 +213,7 @@ mod tests {
 
     #[test]
     fn test_position_contains() {
-        let range = Range::new(
-            Position::new(1, 5),
-            Position::new(3, 10),
-        );
+        let range = Range::new(Position::new(1, 5), Position::new(3, 10));
 
         assert!(range.contains(Position::new(2, 0)));
         assert!(range.contains(Position::new(1, 5)));

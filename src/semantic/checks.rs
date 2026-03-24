@@ -6,11 +6,11 @@
 //! - 类型兼容性
 //! - 导入循环检测
 
-use std::path::{Path, PathBuf};
 use std::collections::{HashMap, HashSet};
+use std::path::{Path, PathBuf};
 
-use super::{Position, Range, DocumentLocation};
-use crate::salsa_full::{Type, SymbolKind, FunctionSignature};
+use super::{DocumentLocation, Position, Range};
+use crate::salsa_full::{FunctionSignature, SymbolKind, Type};
 
 /// 检查引擎
 pub struct CheckEngine {
@@ -78,11 +78,9 @@ impl CheckEngine {
         }
 
         let result = self.perform_interface_check(interface_file, interface_name);
-        
-        self.results.insert(
-            key,
-            CheckResult::Interface(result.clone()),
-        );
+
+        self.results
+            .insert(key, CheckResult::Interface(result.clone()));
 
         result
     }
@@ -107,10 +105,7 @@ impl CheckEngine {
             module: "module_b".to_string(),
             location: DocumentLocation {
                 path: PathBuf::from("module_b/impl.go"),
-                range: Range::new(
-                    Position::new(5, 0),
-                    Position::new(15, 10),
-                ),
+                range: Range::new(Position::new(5, 0), Position::new(15, 10)),
             },
             method_count: 1,
         });
@@ -118,14 +113,14 @@ impl CheckEngine {
         // 注：返回值命名在 Go 中是可选的，不影响接口兼容性
         // (int, error) 和 (n int, err error) 在类型上是完全等价的
         // 因此这里不应该报告错误
-        
+
         // 实际实现会检查真正的不兼容问题，例如：
         // - 参数类型不匹配
-        // - 返回值数量不匹配  
+        // - 返回值数量不匹配
         // - 返回值类型不匹配（不考虑命名）
 
         let is_consistent = issues.is_empty();
-        
+
         InterfaceCheckResult {
             interface_name: interface_name.to_string(),
             expected_methods: vec!["Read".to_string()],
@@ -138,9 +133,9 @@ impl CheckEngine {
     /// 检查方法签名一致性
     ///
     /// 比较两个方法的签名是否兼容。
-    /// 
+    ///
     /// # 注意
-    /// 
+    ///
     /// 返回值命名不影响兼容性：
     /// - `(int, error)` 和 `(n int, err error)` 是兼容的
     /// - 只比较类型，不比较参数/返回值名称
@@ -206,27 +201,28 @@ impl CheckEngine {
         match (from, to) {
             // int 可以赋值给 float
             (Type::Int, Type::Float) => CompatibilityResult::CompatibleWithConversion,
-            
+
             // any 类型兼容一切
             (Type::Any, _) | (_, Type::Any) => CompatibilityResult::Compatible,
-            
+
             // 检查结构体子类型
             (Type::Struct(from_fields), Type::Struct(to_fields)) => {
                 // 检查 from 是否包含 to 的所有字段
                 for (name, to_ty) in to_fields.iter() {
                     match from_fields.get(name) {
                         Some(from_ty) if from_ty == to_ty => continue,
-                        _ => return CompatibilityResult::Incompatible(
-                            format!("缺少或类型不匹配的字段: {}", name)
-                        ),
+                        _ => {
+                            return CompatibilityResult::Incompatible(format!(
+                                "缺少或类型不匹配的字段: {}",
+                                name
+                            ))
+                        }
                     }
                 }
                 CompatibilityResult::Compatible
             }
-            
-            _ => CompatibilityResult::Incompatible(
-                format!("类型 {:?} 与 {:?} 不兼容", from, to)
-            ),
+
+            _ => CompatibilityResult::Incompatible(format!("类型 {:?} 与 {:?} 不兼容", from, to)),
         }
     }
 
@@ -491,11 +487,9 @@ mod tests {
     #[test]
     fn test_interface_check() {
         let engine = CheckEngine::new();
-        let result = engine.check_interface_implementations(
-            Path::new("module_a/types.go"),
-            "Reader",
-        );
-        
+        let result =
+            engine.check_interface_implementations(Path::new("module_a/types.go"), "Reader");
+
         assert_eq!(result.interface_name, "Reader");
         assert!(!result.implementations.is_empty());
     }
@@ -503,12 +497,12 @@ mod tests {
     #[test]
     fn test_type_compatibility() {
         let engine = CheckEngine::new();
-        
+
         assert_eq!(
             engine.check_type_compatibility(&Type::Int, &Type::Int),
             CompatibilityResult::Compatible
         );
-        
+
         assert_eq!(
             engine.check_type_compatibility(&Type::Int, &Type::Float),
             CompatibilityResult::CompatibleWithConversion
@@ -518,7 +512,7 @@ mod tests {
     #[test]
     fn test_import_cycle_detection() {
         let engine = CheckEngine::new();
-        
+
         let packages = vec![
             PackageInfo {
                 name: "a".to_string(),
@@ -536,7 +530,7 @@ mod tests {
                 dependencies: vec!["a".to_string()], // 循环
             },
         ];
-        
+
         let cycles = engine.detect_import_cycles(&packages);
         assert!(!cycles.is_empty());
     }
@@ -545,7 +539,7 @@ mod tests {
     fn test_return_value_naming_compatibility() {
         // 验证返回值命名不影响兼容性
         let engine = CheckEngine::new();
-        
+
         // 方法1: 无名返回值
         let expected = MethodSignature {
             name: "Read".to_string(),
@@ -553,7 +547,7 @@ mod tests {
             return_type: Type::Tuple(vec![Type::Int, Type::Any]), // (int, error)
             is_variadic: false,
         };
-        
+
         // 方法2: 命名返回值 - 应该兼容
         let actual = MethodSignature {
             name: "Read".to_string(),
@@ -561,9 +555,9 @@ mod tests {
             return_type: Type::Tuple(vec![Type::Int, Type::Any]), // (n int, err error) - 类型相同
             is_variadic: false,
         };
-        
+
         let result = engine.check_method_signature(&expected, &actual);
-        
+
         // 类型相同，应该兼容（不检查返回值命名）
         assert!(result.is_compatible, "返回值命名不应影响兼容性");
         assert!(result.issues.is_empty(), "不应报告返回值命名问题");
@@ -572,17 +566,20 @@ mod tests {
     #[test]
     fn test_interface_check_no_false_positive_on_naming() {
         let engine = CheckEngine::new();
-        let result = engine.check_interface_implementations(
-            Path::new("module_a/types.go"),
-            "Reader",
-        );
-        
+        let result =
+            engine.check_interface_implementations(Path::new("module_a/types.go"), "Reader");
+
         // 不应该因为返回值命名而报告错误
-        let naming_issues: Vec<_> = result.issues.iter()
+        let naming_issues: Vec<_> = result
+            .issues
+            .iter()
             .filter(|i| i.message.contains("命名"))
             .collect();
-        
-        assert!(naming_issues.is_empty(), 
-            "返回值命名差异不应被报告为问题，但发现: {:?}", naming_issues);
+
+        assert!(
+            naming_issues.is_empty(),
+            "返回值命名差异不应被报告为问题，但发现: {:?}",
+            naming_issues
+        );
     }
 }

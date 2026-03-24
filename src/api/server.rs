@@ -1,16 +1,16 @@
 //! gRPC API server
-//! 
+//!
 //! Serves TypeService over gRPC with high performance.
 
 use super::service::TypeService;
-use crate::core::SharedUniverse;
 use crate::agent::AgentCoordinator;
+use crate::core::SharedUniverse;
 
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tonic::{transport::Server, Request, Response, Status};
-use tracing::{info, error};
+use tracing::{error, info};
 
 /// API server configuration
 #[derive(Debug, Clone)]
@@ -40,24 +40,24 @@ impl ApiServer {
     pub fn new(config: ApiConfig, universe: SharedUniverse) -> Self {
         let coordinator = Arc::new(AgentCoordinator::new(universe.clone()));
         let service = TypeService::new(universe, coordinator);
-        
-        Self {
-            config,
-            service,
-        }
+
+        Self { config, service }
     }
-    
+
     /// Start the API server
     pub async fn start(&self) -> Result<(), ApiError> {
         info!("Starting API server on {}", self.config.bind_address);
-        
+
         // Would create actual gRPC service here
         // For now, just a placeholder
-        info!("gRPC server placeholder - would start on {}", self.config.bind_address);
-        
+        info!(
+            "gRPC server placeholder - would start on {}",
+            self.config.bind_address
+        );
+
         Ok(())
     }
-    
+
     /// Get server health
     pub async fn health_check(&self) -> HealthStatus {
         HealthStatus {
@@ -107,7 +107,7 @@ impl RestServer {
             service,
         }
     }
-    
+
     /// Start REST server
     pub async fn start(&self) -> Result<(), ApiError> {
         // Would implement REST endpoints using axum or similar
@@ -129,7 +129,7 @@ impl WebSocketServer {
             service,
         }
     }
-    
+
     /// Start WebSocket server for streaming validation
     pub async fn start(&self) -> Result<(), ApiError> {
         info!("WebSocket server would start on {}", self.bind_address);
@@ -147,7 +147,7 @@ mod tests {
         let universe = Arc::new(TypeUniverse::new());
         let config = ApiConfig::default();
         let server = ApiServer::new(config, universe);
-        
+
         // Just verify it compiles
     }
 }
