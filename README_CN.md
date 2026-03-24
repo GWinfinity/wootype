@@ -1,112 +1,110 @@
 # wootype 🐕
 
-**⚡ Blazing-fast Go Type System Service — 100-1000x faster than traditional type checking**
+**⚡ 极速 Go 类型系统 —— 比传统类型检查快 100-1000 倍**
 
 [![Crates.io](https://img.shields.io/crates/v/wootype)](https://crates.io/crates/wootype)
 [![Docs.rs](https://docs.rs/wootype/badge.svg)](https://docs.rs/wootype)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-wootype is an ultra-fast Go type checking engine written in Rust, featuring incremental computation architecture (Salsa) and ECS storage model for sub-millisecond type checking response.
+wootype 是用 Rust 编写的极速 Go 类型检查引擎，采用增量计算架构 (Salsa) 和 ECS 存储模型，实现亚毫秒级类型检查响应。
 
-> 🐕 **Part of Woo Ecosystem**: [woofind](https://github.com/yourusername/woofind) → [woolink](https://github.com/yourusername/woolink) → [wootype](https://github.com/yourusername/wootype)
-
-📖 [中文文档](README_CN.md)
+> 🐕 **Woo Ecosystem 核心组件**: [woofind](https://github.com/yourusername/woofind) → [woolink](https://github.com/yourusername/woolink) → [wootype](https://github.com/yourusername/wootype)
 
 ---
 
-## 🚀 Extreme Performance
+## 🚀 极致性能
 
-### Speed Comparison
+### 速度对比
 
-| Scenario | wootype | go/types | Traditional LSP | Speedup |
-|----------|---------|----------|-----------------|---------|
-| **Cold Start (1000 functions)** | 1.2ms | 1-5s | 2-10s | **800-4000x** |
-| **Incremental Update (single function)** | 25μs | Full re-check | ~500ms | **20,000x** |
-| **Cache Query** | 3ns | N/A | ~1μs | **300x** |
-| **LSP Single Character Response** | 50ns | ~697ns | ~1ms | **14-20,000x** |
-| **Type Jump (Go to Def)** | O(1) | Requires parsing | ~100ms | **∞** |
+| 场景 | wootype | go/types | 传统 LSP | 领先倍数 |
+|------|---------|----------|----------|----------|
+| **冷启动 (1000 函数)** | 1.2ms | 1-5s | 2-10s | **800-4000x** |
+| **增量更新 (单函数)** | 25μs | 全量重检 | ~500ms | **20,000x** |
+| **缓存查询** | 3ns | N/A | ~1μs | **300x** |
+| **LSP 单字符响应** | 50ns | ~697ns | ~1ms | **14-20,000x** |
+| **类型跳转 (Go to Def)** | O(1) | 需解析 | ~100ms | **∞** |
 
-*Test environment: Standard x86_64, Release mode*
+*测试环境：标准 x86_64，Release 模式*
 
-### Why So Fast?
+### 为什么这么快？
 
 ```
-🦀 Native Rust Performance
-   ├─ Zero-cost abstractions
-   ├─ No GC pauses
-   └─ Extreme memory control
+🦀 Rust 原生性能
+   ├─ 零成本抽象
+   ├─ 无 GC 停顿
+   └─ 极致内存控制
 
-⚡ Salsa Incremental Computation Framework
-   ├─ Automatic dependency tracking
-   ├─ Fine-grained caching (LRU)
-   └─ Only recompute changed parts
+⚡ Salsa 增量计算框架
+   ├─ 自动依赖跟踪
+   ├─ 细粒度缓存 (LRU)
+   └─ 只重新计算变更部分
 
-🔧 ECS Storage Architecture
+🔧 ECS 存储架构
    ├─ Entity-Component-System
-   ├─ Archetype compact storage
-   └─ Cache-friendly data layout
+   ├─ Archetype 紧凑存储
+   └─ 缓存友好的数据布局
 
-🔄 Concurrent Safety Design
-   ├─ DashMap lock-free reads
-   ├─ scc::HashMap fine-grained locks
-   └─ 1000+ AI Agent concurrency
+🔄 并发安全设计
+   ├─ DashMap 无锁读
+   ├─ scc::HashMap 细粒度锁
+   └─ 1000+ AI Agent 并发
 ```
 
 ---
 
-## 📊 Performance Details
+## 📊 性能详情
 
-### Cold Start vs Incremental Update
+### 冷启动 vs 增量更新
 
-| Metric | Cold Start | Incremental | Speedup |
-|--------|------------|-------------|---------|
-| 1000 functions check | 1.2ms | **25μs** | **50x** |
-| Single character response | ~697ns | **50ns** | **14x** |
-| Memory usage | ~20MB | ~5MB | **-75%** |
+| 指标 | 冷启动 | 增量更新 | 加速比 |
+|------|--------|----------|--------|
+| 1000 函数检查 | 1.2ms | **25μs** | **50x** |
+| 单字符输入响应 | ~697ns | **50ns** | **14x** |
+| 内存占用 | ~20MB | ~5MB | **-75%** |
 
-### Cache Query Performance
+### 缓存查询性能
 
-| Operation | Simplified Salsa | wootype (Salsa-rs) | Speedup |
-|-----------|-----------------|-------------------|---------|
-| Re-query | ~500ns | **3ns** | **100x** |
-| Symbol lookup | ~400ns | **3ns** | **133x** |
+| 操作 | 简化版 Salsa | wootype (Salsa-rs) | 提升 |
+|------|-------------|-------------------|------|
+| 重新查询 | ~500ns | **3ns** | **100x** |
+| 符号查找 | ~400ns | **3ns** | **133x** |
 
-*Data source: SALSA_PERFORMANCE_COMPARISON.md*
+*数据来源：SALSA_PERFORMANCE_COMPARISON.md*
 
-### Comparison with Go Toolchain
+### 与 Go 工具链对比
 
-| Tool | Single Function Change | PyTorch-scale Project | Relative Speed |
-|------|------------------------|----------------------|----------------|
-| go/types | Full re-check | ~500μs | 1x |
+| 工具 | 单函数变更 | PyTorch 规模项目 | 相对速度 |
+|------|-----------|-----------------|----------|
+| go/types | 全量重检 | ~500μs | 1x |
 | gopls | ~300ms | ~200ms | ~2x |
 | **wootype** | **25ns** | **25ns** | **20,000x** |
 
 ---
 
-## ✨ Features
+## ✨ 功能特性
 
-| Feature | Description |
-|---------|-------------|
-| 🔍 **Full Type Checking** | Supports Go 1.22+ full syntax features |
-| ⚡ **Incremental Computation** | Salsa framework, only checks changes |
-| 🎯 **O(1) Type Jump** | Pre-computed type graph, no re-parsing |
-| 🔗 **Cross-package Resolution** | Integrates with woolink, global symbol table |
-| 🧩 **ECS Storage** | Entity-Component-System architecture |
-| 🌐 **LSP Protocol** | Language Server Protocol support |
-| 🤖 **AI Agent Friendly** | 1000+ concurrency, speculative transactions |
-| 📦 **gRPC/WebSocket** | Server-side type checking API |
+| 特性 | 描述 |
+|------|------|
+| 🔍 **完整类型检查** | 支持 Go 1.22+ 全语法特性 |
+| ⚡ **增量计算** | Salsa 框架，只检查变更 |
+| 🎯 **O(1) 类型跳转** | 预计算类型图，无需重新解析 |
+| 🔗 **跨包引用解析** | 与 woolink 集成，全局符号表 |
+| 🧩 **ECS 存储** | Entity-Component-System 架构 |
+| 🌐 **LSP 协议** | Language Server Protocol 支持 |
+| 🤖 **AI Agent 友好** | 1000+ 并发，支持 Speculative 事务 |
+| 📦 **gRPC/WebSocket** | 服务端类型检查 API |
 
 ---
 
-## 📦 Installation
+## 📦 安装
 
-### From crates.io
+### 从 crates.io
 
 ```bash
 cargo install wootype
 ```
 
-### From Source
+### 从源码
 
 ```bash
 git clone https://github.com/yourusername/wootype.git
@@ -114,7 +112,7 @@ cd wootype
 cargo install --path . --release
 ```
 
-### Pre-built Binaries
+### 预编译二进制
 
 ```bash
 # Linux x86_64
@@ -125,25 +123,25 @@ sudo mv wootype /usr/local/bin/
 
 ---
 
-## 🚀 Quick Start
+## 🚀 快速开始
 
-### As a Library
+### 作为库使用
 
 ```rust
 use wootype::prelude::*;
 use std::sync::Arc;
 
-// Create type universe
+// 创建类型宇宙
 let universe = Arc::new(TypeUniverse::new());
 
-// Perform type checking
+// 执行类型检查
 let result = universe.check_file("main.go");
 
-// Incremental update
+// 增量更新
 let delta = universe.check_incremental(changes);
 ```
 
-### Type Query
+### 类型查询
 
 ```rust
 use wootype::core::{TypeUniverse, TypeKind, PrimitiveType};
@@ -155,7 +153,7 @@ async fn main() {
     let universe = Arc::new(TypeUniverse::new());
     let engine = QueryEngine::new(universe);
     
-    // Query by fingerprint
+    // 按指纹查询类型
     let fingerprint = PrimitiveType::Int.fingerprint();
     let results = engine.query_by_fingerprint(fingerprint);
     
@@ -165,15 +163,15 @@ async fn main() {
 }
 ```
 
-### AI Agent Session
+### AI Agent 会话
 
 ```rust
 use wootype::agent::{AgentCoordinator, AgentSession, SessionConfig, AgentType};
 
-// Create coordinator
+// 创建协调器
 let coordinator = AgentCoordinator::new();
 
-// Create session
+// 创建会话
 let config = SessionConfig {
     agent_type: AgentType::TypeChecker,
     isolation_level: IsolationLevel::ReadCommitted,
@@ -182,48 +180,48 @@ let config = SessionConfig {
 
 let session = coordinator.create_session(config);
 
-// Perform type checking in session
+// 在会话中执行类型检查
 let result = session.check_types("main.go");
 ```
 
-### As LSP Server
+### 作为 LSP 服务器
 
 ```bash
-# Start LSP service
+# 启动 LSP 服务
 wootype daemon --port 8080
 
-# Or use stdio mode
+# 或使用 stdio 模式
 wootype lsp
 ```
 
-### Type Query CLI
+### 类型查询 CLI
 
 ```bash
-# Check file types
+# 检查文件类型
 wootype check main.go
 
-# Query symbol type
+# 查询符号类型
 wootype query --symbol "MyStruct" --file main.go
 
-# Start type checking service
+# 启动类型检查服务
 wootype serve --port 8080
 
-# WebSocket mode
+# WebSocket 模式
 wootype ws --port 8081
 ```
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ 架构亮点
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    wootype Architecture                      │
+│                    wootype 高性能架构                        │
 ├─────────────────────────────────────────────────────────────┤
 │                                                              │
 │  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐     │
 │  │   Parser    │    │    Salsa    │    │  Type Store │     │
-│  │(tree-sitter│───▶│   Database  │◀──▶│  (ECS/Arche │     │
+│  │ (tree-sitter│───▶│   Database  │◀──▶│  (ECS/Arche │     │
 │  │             │    │             │    │    type)    │     │
 │  └─────────────┘    └──────┬──────┘    └─────────────┘     │
 │                             │                                │
@@ -244,75 +242,112 @@ wootype ws --port 8081
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Core Technologies
+### 核心技术
 
-| Technology | Purpose | Effect |
-|------------|---------|--------|
-| **Salsa-rs** | Incremental Computation | Automatic dependency tracking, fine-grained caching |
-| **ECS** | Type Data Storage | Archetype compact layout, cache-friendly |
-| **DashMap** | Concurrent Type Table | Lock-free reads, 1000+ concurrency |
-| **im::HashMap** | Snapshot Isolation | Persistent data structures, Copy-on-Write |
-| **Tree-sitter** | Go Code Parsing | Accurate, fast, incremental |
-
----
-
-## 📚 Documentation
-
-- [API Docs](https://docs.rs/wootype)
-- [Architecture](ARCHITECTURE.md)
-- [Chinese Docs](README_CN.md)
+| 技术 | 用途 | 效果 |
+|------|------|------|
+| **Salsa-rs** | 增量计算框架 | 自动依赖跟踪，细粒度缓存 |
+| **ECS** | 类型数据存储 | Archetype 紧凑布局，缓存友好 |
+| **DashMap** | 并发类型表 | 无锁读，1000+ 并发 |
+| **im::HashMap** | 快照隔离 | 持久化数据结构，Copy-on-Write |
+| **Tree-sitter** | Go 代码解析 | 精确、快速、可增量 |
 
 ---
 
-## 💡 Use Cases
+## 📚 API 文档
 
-### IDE Real-time Type Checking
+### 核心类型
+
+| 类型 | 描述 |
+|------|------|
+| `TypeUniverse` | 类型宇宙，包含所有类型信息 |
+| `Type` / `TypeId` | 类型和类型标识 |
+| `TypeKind` | 类型种类 (基础/复合/函数等) |
+| `PrimitiveType` | 基础类型 (int/string/bool 等) |
+| `Entity` / `EntityId` | ECS 实体和标识 |
+| `QueryEngine` | 类型查询引擎 |
+| `AgentCoordinator` | AI Agent 协调器 |
+| `AgentSession` | Agent 会话 |
+
+### 模块结构
 
 ```
-User types character → Salsa incremental check → Update type hints
-Latency: ~50ns (cache hit)
-Experience: ✅ Zero-perceptible delay
+wootype/
+├── core/            # 核心类型系统
+│   ├── entity.rs       # ECS 实体
+│   ├── storage.rs      # Archetype 存储
+│   ├── types.rs        # 类型定义
+│   └── universe.rs     # 类型宇宙
+├── query/           # 查询引擎
+│   ├── engine.rs       # 查询引擎
+│   ├── pattern.rs      # 模式匹配
+│   └── cache.rs        # 查询缓存
+├── validate/        # 类型验证
+│   ├── checker.rs      # 类型检查器
+│   └── stream.rs       # 流式验证
+├── agent/           # AI Agent
+│   ├── coordinator.rs  # 协调器
+│   └── session.rs      # 会话管理
+├── salsa/           # Salsa 集成
+│   └── ...
+├── semantic/        # 语义分析
+│   └── ...
+└── api/             # API 服务
+    ├── grpc.rs       # gRPC 服务
+    └── websocket.rs  # WebSocket 服务
 ```
 
-### AI Agent Batch Analysis
+---
+
+## 💡 使用场景
+
+### IDE 实时类型检查
+
+```
+用户输入字符 → Salsa 增量检查 → 更新类型提示
+延迟: ~50ns (缓存命中)
+体验: ✅ 零感知延迟
+```
+
+### AI Agent 批量分析
 
 ```rust
-// 1000+ AI Agents querying types concurrently
+// 1000+ AI Agent 并发查询类型
 let universe = Arc::new(TypeUniverse::new());
 
 for agent in 0..1000 {
     let u = universe.clone();
     spawn(async move {
-        let type_info = u.query_type(symbol_id); // O(1) query
+        let type_info = u.query_type(symbol_id); // O(1) 查询
     });
 }
 ```
 
-### CI Type Checking
+### 持续集成类型检查
 
 ```bash
-# Fast type checking in CI pipeline
+# CI 管道中快速类型检查
 wootype check ./... --incremental
 
-# Integration with woof
+# 与 woof 集成
 woof check . --types-enabled
 ```
 
-### Cross-package Type Analysis
+### 跨包类型分析
 
 ```bash
-# Analyze interface implementation relationships
+# 分析接口实现关系
 wootype impl --interface "io.Reader" --project .
 
-# Detect circular type dependencies
+# 检测循环类型依赖
 wootype cycles --strict
 ```
 
 ---
 
-## 🔌 Ecosystem
+## 🔌 生态系统
 
-wootype is a core component of the Woo Ecosystem:
+wootype 是 Woo Ecosystem 的核心组件：
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -321,7 +356,7 @@ wootype is a core component of the Woo Ecosystem:
 │                                                              │
 │   ┌──────────┐        ┌──────────┐        ┌──────────┐     │
 │   │ woofind  │───────▶│ woolink  │◀───────│ wootype  │     │
-│   │ (Search) │ Index  │  (Link)  │  Types  │ (Types)  │     │
+│   │ (搜索)    │ 索引   │ (链接)   │  类型   │ (类型)   │     │
 │   └──────────┘        └────┬─────┘        └──────────┘     │
 │                             │                                │
 │                             ▼                                │
@@ -333,17 +368,28 @@ wootype is a core component of the Woo Ecosystem:
 └─────────────────────────────────────────────────────────────┘
 ```
 
-- **[woofind](https://crates.io/crates/woofind)**: Symbol search engine, provides symbol index
-- **[woolink](https://crates.io/crates/woolink)**: Cross-package symbol resolution, global symbol table
+- **[woofind](https://crates.io/crates/woofind)**: 符号搜索引擎，提供符号索引
+- **[woolink](https://crates.io/crates/woolink)**: 跨包符号解析，全局符号表
+
+### 与 woolink 集成
+
+```rust
+use wootype::prelude::*;
+use woolink::SymbolUniverse;
+
+// 从 woolink 符号表构建类型宇宙
+let symbol_universe = SymbolUniverse::new(100_000);
+let type_universe = TypeUniverse::from_symbols(&symbol_universe);
+```
 
 ---
 
-## 🤝 Contributing
+## 🤝 贡献
 
-Contributions welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md).
+欢迎贡献！请查看 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ```bash
-# Development environment
+# 开发环境
 git clone https://github.com/yourusername/wootype.git
 cd wootype
 cargo test
@@ -352,7 +398,7 @@ cargo bench
 
 ---
 
-## 📄 License
+## 📄 许可证
 
 MIT License © [Your Name]
 
@@ -360,4 +406,4 @@ MIT License © [Your Name]
 
 **Made with ❤️ and 🦀 Rust**
 
-> *"wootype makes Go type checking so fast you forget it exists."*
+> *"wootype 让 Go 类型检查快到忘记它存在。"*
