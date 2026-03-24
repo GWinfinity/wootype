@@ -4,6 +4,10 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Wootype Team"]
 description = "Type System as a Service - Rust-powered Go type checker for AI Agents"
+license = "MIT"
+repository = "https://github.com/wootype/wootype"
+homepage = "https://github.com/wootype/wootype"
+documentation = "https://docs.rs/wootype"
 
 [dependencies]
 # Core async runtime
@@ -53,7 +57,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 interprocess = "1.2"
 
 # Incremental computation - Full Salsa framework
-salsa = { git = "https://github.com/salsa-rs/salsa", branch = "master" }
+salsa = "0.26"
 
 # Utilities
 uuid = { version = "1.6", default-features = false, features = ["v4", "serde", "rng"] }
