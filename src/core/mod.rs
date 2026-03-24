@@ -4,6 +4,7 @@
 //! providing zero-latency type queries for AI Agents.
 
 pub mod entity;
+pub mod gomod;
 pub mod method;
 pub mod serde_impl;
 pub mod storage;

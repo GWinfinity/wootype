@@ -4,6 +4,7 @@
 //! with look-ahead inference and soft error handling.
 
 pub mod checker;
+pub mod concurrent;
 pub mod error;
 pub mod infer;
 pub mod stream;

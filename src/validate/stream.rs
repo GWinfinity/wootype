@@ -149,7 +149,7 @@ pub enum BinaryOp {
     Shr,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UnaryOp {
     Not,
     Neg,
@@ -157,6 +157,7 @@ pub enum UnaryOp {
     BitNot,
     Deref,
     Addr,
+    Recv, // Channel receive operation (<-ch)
 }
 
 /// Validation result
